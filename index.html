@@ -2,113 +2,118 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oki-Style Slot Simulator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Oki-Style Slot Simulator V2</title>
     <style>
         body {
-            background-color: #1a1a1a;
+            background-color: #111;
             color: #fff;
             font-family: 'Arial', sans-serif;
             text-align: center;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
+            box-sizing: border-box;
         }
         #machine {
             background-color: #8b0000;
-            border: 4px solid #gold;
-            border-radius: 15px;
-            width: 400px;
+            border: 3px solid #ffd700;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 400px;
             margin: 0 auto;
-            padding: 20px;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+            padding: 10px;
+            box-sizing: border-box;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
         }
         /* ビスカスランプ */
         #lamp-container {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            padding: 0 20px;
         }
         .lamp {
-            width: 80px;
-            height: 80px;
+            width: 60px;
+            height: 60px;
             background-color: #330000;
             border-radius: 50%;
             border: 2px solid #550000;
-            transition: all 0.1s;
+            transition: background-color 0.1s;
         }
         .lamp.flash {
             background-color: #ff3333;
-            box-shadow: 0 0 30px #ff0000, 0 0 60px #ffaaaa;
+            box-shadow: 0 0 25px #ff0000, 0 0 50px #ffaaaa;
             border-color: #ffaaaa;
         }
         /* パネル情報 */
         .info-panel {
             background-color: #000;
-            padding: 10px;
-            border-radius: 10px;
-            margin-bottom: 15px;
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 10px;
             display: flex;
-            justify-content: space-around;
-            font-size: 1.2rem;
+            justify-content: space-between;
+            font-size: 1rem;
             border: 2px solid #333;
         }
-        .highlight {
-            color: #00ff00;
-            font-weight: bold;
-        }
-        .danger {
-            color: #ff3333;
-        }
+        .highlight { color: #00ff00; font-weight: bold; }
+        .danger { color: #ff3333; font-weight: bold; }
+        
         /* リール */
         #reels {
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
             background-color: #fff;
-            padding: 15px;
+            padding: 10px;
             border-radius: 5px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         .reel {
-            width: 80px;
-            height: 80px;
+            width: 30%;
+            height: 60px;
             background-color: #ddd;
             color: #000;
-            font-size: 2rem;
-            line-height: 80px;
+            font-size: 1.8rem;
+            line-height: 60px;
             font-weight: bold;
             border: 2px solid #999;
             border-radius: 5px;
-            overflow: hidden;
         }
+
         /* 操作系 */
-        #controls {
+        .controls-row {
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
             margin-bottom: 10px;
+            gap: 5px;
         }
         button {
-            padding: 15px 30px;
-            font-size: 1.2rem;
+            flex: 1;
+            padding: 12px 5px;
+            font-size: 0.9rem;
             font-weight: bold;
             border-radius: 5px;
             cursor: pointer;
             border: none;
+            touch-action: manipulation;
         }
-        #spin-btn { background-color: #0066cc; color: #fff; }
-        #spin-btn:disabled { background-color: #333; color: #666; cursor: not-allowed; }
-        .stop-btn { background-color: #cc0000; color: #fff; width: 80px; }
-        .stop-btn:disabled { background-color: #333; color: #666; cursor: not-allowed; }
+        #spin-btn { background-color: #0066cc; color: #fff; font-size: 1.1rem; }
+        #spin-btn:disabled { background-color: #333; color: #666; }
+        .action-btn { background-color: #444; color: #fff; }
+        .action-btn.active { background-color: #ff9900; color: #000; }
+        .skip-btn { background-color: #9900cc; color: #fff; }
         
         #console {
             background-color: #000;
-            height: 100px;
-            overflow-y: scroll;
+            height: 120px;
+            overflow-y: auto;
             text-align: left;
             padding: 10px;
             border-radius: 5px;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             color: #bbb;
-            margin-top: 15px;
+            margin-top: 10px;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -121,27 +126,30 @@
         </div>
 
         <div class="info-panel">
-            <div>G数: <span id="game-count" class="highlight">0</span></div>
-            <div>差枚数: <span id="net-tokens">0</span></div>
+            <div>G数: <span id="game-count" class="highlight">0</span> (天井:<span id="ceiling-display">400</span>)</div>
+            <div>差枚: <span id="net-tokens">0</span></div>
         </div>
-        <div class="info-panel" style="font-size: 1rem;">
+        <div class="info-panel">
             <div>状態: <span id="status-display">通常</span></div>
-            <div>ストック: <span id="stock-display">0</span></div>
+            <div>裏ストック: <span id="stock-display">0</span></div>
         </div>
 
         <div id="reels">
-            <div class="reel" id="reel-0">-</div>
-            <div class="reel" id="reel-1">-</div>
-            <div class="reel" id="reel-2">-</div>
+            <div class="reel" id="reel-0">🍒</div>
+            <div class="reel" id="reel-1">🔔</div>
+            <div class="reel" id="reel-2">🍉</div>
         </div>
 
-        <div id="controls">
-            <button id="spin-btn" onclick="spin()">レバーON (3枚)</button>
+        <div class="controls-row">
+            <button id="spin-btn" onclick="manualSpin()">手動 1G回す</button>
         </div>
-        <div id="controls">
-            <button class="stop-btn" id="stop-0" onclick="stopReel(0)" disabled>左</button>
-            <button class="stop-btn" id="stop-1" onclick="stopReel(1)" disabled>中</button>
-            <button class="stop-btn" id="stop-2" onclick="stopReel(2)" disabled>右</button>
+        <div class="controls-row">
+            <button class="action-btn" id="auto-1" onclick="toggleAuto(1)">オート低</button>
+            <button class="action-btn" id="auto-2" onclick="toggleAuto(2)">オート中</button>
+            <button class="action-btn" id="auto-3" onclick="toggleAuto(3)">オート高</button>
+        </div>
+        <div class="controls-row">
+            <button class="skip-btn" onclick="executeSkip()">イベントスキップ</button>
         </div>
 
         <div id="console"></div>
@@ -149,306 +157,285 @@
 
     <script>
         /* ========================================================
-           設計・機械割シミュレーション (約100%目標)
-           
-           【ベース】
-           ・通常時のコイン持ち: 約30G/50枚 (1Gあたり純減 約-1.65枚)
-           ・リプレイ(13.5%), ベル(6%), レア役(1.5%)
-           
-           【ボーナスとモード】
-           ・BIG(約200枚獲得: AT60G) / REG(約60枚獲得: AT20G)
-           ・通常モードからの初当たり確率: 1/250
-           ・天国モード(32G以内確定): ループ率75%
-           
-           初当たりまでの平均投資: 250G * 1.65枚 = 412.5枚
-           初当たり時の期待枚数(天国ループ込):
-             1回+天国3回(75%ループ平均) = 4連。
-             BIG/REG比率が6:4とすると、平均獲得枚数 約144枚。
-             144枚 * 4連 = 576枚。
-           
-           わずかにプラスになる設計ですが、引き戻しスルー時のベース減少を
-           考慮すると実質機械割は99.8%〜100.5%程度に収束する設計です。
+           内部状態・パラメータ
         ======================================================== */
-
-        // --- 状態変数 ---
         let games = 0;
         let netTokens = 0;
-        let mode = 'normal'; // 'normal', 'pullback', 'heaven', 'bonus'
-        let stock = 0;
-        let bonusType = null; // 'BIG', 'REG'
+        let mode = 'normal'; // 'normal', 'pullback', 'bonus'
+        let stockQueue = []; // 'BIG' or 'REG' を格納
+        let pendingBonus = null; // 次G告知用
+        let currentBonus = null;
         let atGamesLeft = 0;
-        let isFlashing = false;
+        let isReset = true;
+        let currentCeiling = 400; // リセット時400G、それ以外600G
 
-        let reelsInt = [null, null, null];
-        let reelsStopped = [true, true, true];
-        let currentRole = 'blank';
+        let autoInterval = null;
+        let isAuto = 0;
+        let isSkipping = false;
 
-        const symbols = ['🍉', '🍒', '🔔', '🔄', '7️⃣', 'BAR', '❌'];
-
-        // --- DOM要素 ---
         const domGames = document.getElementById('game-count');
         const domNet = document.getElementById('net-tokens');
         const domStatus = document.getElementById('status-display');
         const domStock = document.getElementById('stock-display');
-        const btnSpin = document.getElementById('spin-btn');
+        const domCeiling = document.getElementById('ceiling-display');
         const lamps = [document.getElementById('lamp-left'), document.getElementById('lamp-right')];
         const consoleEl = document.getElementById('console');
+        const reels = [document.getElementById('reel-0'), document.getElementById('reel-1'), document.getElementById('reel-2')];
+
+        // 初期化（リセット恩恵）
+        function initMachine() {
+            log("設定変更(リセット)完了。天井400G");
+            checkStock(0.20, 0.20, "リセット恩恵");
+        }
 
         function log(msg) {
             consoleEl.innerHTML = `<div>${msg}</div>` + consoleEl.innerHTML;
         }
 
-        // --- Web Audio API (サウンドエンジン) ---
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        let audioCtx;
-
-        function initAudio() {
-            if (!audioCtx) audioCtx = new AudioContext();
+        // 告知ランプ
+        function setLamp(state) {
+            lamps.forEach(l => state ? l.classList.add('flash') : l.classList.remove('flash'));
         }
 
-        function playSound(type) {
-            if(!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-
-            const now = audioCtx.currentTime;
-            
-            if (type === 'spin') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(440, now);
-                osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
-                gainNode.gain.setValueAtTime(0.1, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'stop') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(1200, now);
-                gainNode.gain.setValueAtTime(0.1, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-                osc.start(now); osc.stop(now + 0.05);
-            } else if (type === 'kyuin') {
-                // 告知音（キュイン！）
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(800, now);
-                osc.frequency.linearRampToValueAtTime(2000, now + 0.3);
-                gainNode.gain.setValueAtTime(0.2, now);
-                gainNode.gain.linearRampToValueAtTime(0.01, now + 0.5);
-                osc.start(now); osc.stop(now + 0.5);
-            } else if (type === 'pay') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(1500, now);
-                gainNode.gain.setValueAtTime(0.1, now);
-                gainNode.gain.linearRampToValueAtTime(0.01, now + 0.2);
-                osc.start(now); osc.stop(now + 0.2);
+        /* ========================================================
+           抽選ロジック
+        ======================================================== */
+        function checkStock(bigProb, regProb, reason) {
+            let r = Math.random();
+            if (r < bigProb) {
+                stockQueue.push('BIG');
+                log(`<span class="highlight">【ストック獲得】${reason} (BIG)</span>`);
+            } else if (r < (bigProb + regProb)) {
+                stockQueue.push('REG');
+                log(`<span class="highlight">【ストック獲得】${reason} (REG)</span>`);
             }
         }
 
-        // --- 抽選ロジック ---
         function determineRole() {
             const r = Math.random();
             if (mode === 'bonus') {
-                // ボーナス中はベル確率大幅UP(純増約3.0枚)
-                if (r < 0.60) return 'bell';
-                if (r < 0.65) return 'replay';
-                if (r < 0.68) return 'rare'; // レア役でストック抽選
-                return 'blank';
+                // ボーナス中 (純増約3.0枚想定の小役確率)
+                if (r < 0.65) return { type: 'medium_bell', pay: 8, net: 5, name: '中ベル', symbol: '🔔' };
+                if (r < 0.80) return { type: 'replay', pay: 3, net: 0, name: 'リプレイ', symbol: '🔄' };
+                if (r < 0.82) return { type: 'suika', pay: 6, net: 3, name: 'スイカ', symbol: '🍉' };
+                if (r < 0.83) return { type: 'cherry', pay: 2, net: -1, name: 'チェリー', symbol: '🍒' };
+                return { type: 'blank', pay: 0, net: -3, name: 'ハズレ', symbol: '❌' };
             } else {
-                if (r < 0.135) return 'replay';
-                if (r < 0.060) return 'bell';
-                if (r < 0.015) return 'rare';
-                return 'blank';
+                // 通常時・引き戻し中
+                if (r < 0.1515) return { type: 'replay', pay: 3, net: 0, name: 'リプレイ', symbol: '🔄' }; // 1/6.6
+                if (r < 0.2814) return { type: 'small_bell', pay: 6, net: 3, name: '小ベル', symbol: '🔔' }; // 1/7.7
+                if (r < 0.3281) return { type: 'medium_bell', pay: 11, net: 8, name: '中ベル', symbol: '🍉' }; // 1/21.4
+                if (r < 0.3476) return { type: 'suika', pay: 9, net: 6, name: 'スイカ', symbol: '🍉' }; // 1/51.2
+                if (r < 0.3574) return { type: 'cherry', pay: 5, net: 2, name: 'チェリー', symbol: '🍒' }; // 1/102.4
+                return { type: 'blank', pay: 0, net: -3, name: 'ハズレ', symbol: '❌' };
             }
         }
 
-        function checkBonusHit(role) {
-            if (mode === 'bonus') return; // ボーナス中はストック抽選のみ
-            
-            let hitRate = 0;
-            
-            if (stock > 0 && mode !== 'normal') {
-                // ストックあり時は32G以内に均等に放出 (約1/8)
-                hitRate = 0.125; 
-            } else if (mode === 'heaven') {
-                // 天国中 (1/10で告知)
-                hitRate = 0.1;
-            } else if (mode === 'pullback') {
-                // 引き戻し中 (通常より少し高い)
-                hitRate = 1/150;
-            } else {
-                // 通常モード
-                hitRate = 1/250;
-                // レア役時は直撃確率UP
-                if (role === 'rare') hitRate = 0.1; 
+        function playOneGame(isMuted = false) {
+            // ボーナス告知(前兆)の放出
+            if (pendingBonus && mode !== 'bonus') {
+                triggerBonus(pendingBonus, isMuted);
+                pendingBonus = null;
+                return; // ボーナス開始Gはゲーム数を進めない
             }
 
-            // 32G天井（ストックありor天国時）
-            if ((stock > 0 || mode === 'heaven') && games === 32) {
-                hitRate = 1.0;
-            }
-
-            if (Math.random() < hitRate) {
-                triggerBonus();
-            }
-        }
-
-        function triggerBonus() {
-            playSound('kyuin');
-            isFlashing = true;
-            flashLamp();
-            
-            // BIG or REG 抽選 (6:4)
-            bonusType = Math.random() < 0.6 ? 'BIG' : 'REG';
-            
-            log(`<span class="danger">【告知】${bonusType} BONUS 確定！</span>`);
-        }
-
-        function flashLamp() {
-            if(!isFlashing) {
-                lamps.forEach(l => l.classList.remove('flash'));
-                return;
-            }
-            lamps.forEach(l => l.classList.toggle('flash'));
-            setTimeout(flashLamp, 200);
-        }
-
-        function checkStock(role) {
-            // ボーナス中・引き戻し中のレア役でストック抽選
-            if (role === 'rare') {
-                if (Math.random() < 0.25) { // レア役の25%でストック
-                    stock++;
-                    playSound('kyuin');
-                    log('<span class="highlight">【ストック】1G連獲得！</span>');
-                    updateDisplay();
-                }
-            }
-        }
-
-        // --- メインアクション ---
-        function spin() {
-            initAudio(); // ユーザーアクションでAudioContextを有効化
-            
             if (mode !== 'bonus') {
                 games++;
+                
+                // 50G毎ストック抽選
+                if (games % 50 === 0) checkStock(0.07, 0.08, "50G経過");
+
+                // 天井到達
+                if (games >= currentCeiling) {
+                    log(`<span class="danger">天井到達 (${currentCeiling}G)</span>`);
+                    checkStock(0.40, 0.60, "天井恩恵");
+                    // 天井は即告知としてストックから放出
+                    pendingBonus = stockQueue.shift();
+                }
             }
-            
-            // ボーナス移行処理
-            if (isFlashing && mode !== 'bonus') {
-                isFlashing = false;
-                mode = 'bonus';
-                games = 0; // ボーナス当選でG数リセット
-                if (stock > 0) stock--; // ストック消費
+
+            // 毎ゲーム抽選ストック
+            checkStock(0.0001, 0.0004, "毎G抽選");
+
+            const role = determineRole();
+            netTokens += role.net;
+
+            // レア役ストック抽選
+            if (role.type === 'suika' || role.type === 'cherry') {
+                checkStock(0.02, 0.03, "レア役成立");
+            }
+
+            // ボーナス抽選 (通常時・引き戻し中でまだ告知予定がない場合)
+            if (mode !== 'bonus' && !pendingBonus && games < currentCeiling) {
+                // レア役直撃
+                if (role.type === 'suika') {
+                    const rr = Math.random();
+                    if (rr < 0.027) pendingBonus = 'BIG';
+                    else if (rr < 0.030) pendingBonus = 'REG';
+                } else if (role.type === 'cherry') {
+                    const rr = Math.random();
+                    if (rr < 0.015) pendingBonus = 'BIG';
+                    else if (rr < 0.050) pendingBonus = 'REG';
+                }
                 
-                atGamesLeft = bonusType === 'BIG' ? 60 : 20;
-                
-                // 天国移行抽選 (ボーナス開始時)
-                if (mode !== 'heaven') {
-                    if (Math.random() < 0.25) {
-                        mode = 'heaven'; // 25%で天国へ
+                // 毎G通常抽選 1/230
+                if (!pendingBonus) {
+                    const br = Math.random();
+                    if (br < (1/460)) pendingBonus = 'BIG';
+                    else if (br < (1/230)) pendingBonus = 'REG';
+                }
+
+                // 引き戻し中(32G以内)のストック放出ロジック
+                if (mode === 'pullback' && !pendingBonus && stockQueue.length > 0) {
+                    // 残りゲーム数に応じて均等に放出確率を上げる (32G目で100%)
+                    const releaseRate = 1 / (33 - games);
+                    if (Math.random() < releaseRate) {
+                        pendingBonus = stockQueue.shift();
+                        log("ストック放出当選！(次G告知)");
                     }
                 }
             }
 
-            // モード転落判定 (32G抜け)
-            if (games > 32 && (mode === 'heaven' || mode === 'pullback')) {
-                mode = 'normal';
-                log('32Gスルー。通常モードへ移行。');
-            }
-
-            // コイン消費
-            if (currentRole !== 'replay') {
-                netTokens -= 3;
-            }
-            
-            currentRole = determineRole();
-            
-            checkStock(currentRole);
-            checkBonusHit(currentRole);
-
+            // モード管理
             if (mode === 'bonus') {
                 atGamesLeft--;
+                if (atGamesLeft <= 0) {
+                    log("ボーナス終了。32G引き戻しゾーンへ。");
+                    mode = 'pullback';
+                    currentBonus = null;
+                    setLamp(false);
+                }
+            } else if (mode === 'pullback' && games === 32) {
+                log("32Gスルー。通常モードへ。");
+                mode = 'normal';
+                checkStock(0.30, 0.20, "引き戻し終了時");
             }
 
-            updateDisplay();
-            startReels();
-            playSound('spin');
-
-            btnSpin.disabled = true;
-            document.getElementById('stop-0').disabled = false;
+            // 演出UI更新 (スキップ中以外)
+            if (!isMuted) {
+                reels.forEach(r => r.innerText = role.symbol);
+                updateUI();
+            }
         }
 
-        function updateDisplay() {
+        function triggerBonus(type, isMuted) {
+            mode = 'bonus';
+            currentBonus = type;
+            atGamesLeft = (type === 'BIG') ? 60 : 20;
+            games = 0; // ボーナス当選でG数リセット
+            currentCeiling = 600; // リセット以外は600G天井
+            
+            if (type === 'REG') {
+                checkStock(0.15, 0.05, "REG成立恩恵");
+            }
+
+            if (!isMuted) {
+                setLamp(true);
+                log(`<span class="danger">キュイン！ ${type} BONUS 確定！</span>`);
+                updateUI();
+            }
+        }
+
+        /* ========================================================
+           UI・操作系
+        ======================================================== */
+        function updateUI() {
             domGames.innerText = games;
             domNet.innerText = netTokens;
             domNet.style.color = netTokens >= 0 ? '#00ff00' : '#ff3333';
+            domStock.innerText = stockQueue.length;
+            domCeiling.innerText = currentCeiling;
             
-            let statusText = mode === 'bonus' ? `${bonusType}中 (残${atGamesLeft}G)` : 
-                             games <= 32 ? '引き戻し/天国?' : '通常';
+            let statusText = '通常';
+            if (mode === 'bonus') statusText = `${currentBonus} (${atGamesLeft}G)`;
+            else if (mode === 'pullback') statusText = `引き戻し`;
+            
             domStatus.innerText = statusText;
-            domStock.innerText = stock;
         }
 
-        // --- リール制御 ---
-        function startReels() {
-            reelsStopped = [false, false, false];
-            for (let i=0; i<3; i++) {
-                document.getElementById(`reel-${i}`).innerText = '-';
-                reelsInt[i] = setInterval(() => {
-                    document.getElementById(`reel-${i}`).innerText = symbols[Math.floor(Math.random() * symbols.length)];
-                }, 50);
-            }
+        function manualSpin() {
+            if (isAuto !== 0 || isSkipping) return;
+            playOneGame(false);
         }
 
-        function stopReel(idx) {
-            if (reelsStopped[idx]) return;
-            clearInterval(reelsInt[idx]);
-            reelsStopped[idx] = true;
-            playSound('stop');
+        function toggleAuto(speedMode) {
+            if (isSkipping) return;
             
-            document.getElementById(`stop-${idx}`).disabled = true;
-
-            // 擬似的な図柄停止表現
-            let symbolToStop = '❌';
-            if (isFlashing && reelsStopped.every(s=>s)) {
-                symbolToStop = '7️⃣'; // 告知時は7やBARが揃う想定
-            } else if (currentRole === 'replay') symbolToStop = '🔄';
-            else if (currentRole === 'bell') symbolToStop = '🔔';
-            else if (currentRole === 'rare') symbolToStop = '🍒'; // チェリーまたはスイカ
-            
-            document.getElementById(`reel-${idx}`).innerText = symbolToStop;
-
-            // 次の停止ボタンを有効化
-            if (idx < 2) {
-                document.getElementById(`stop-${idx+1}`).disabled = false;
-            } else {
-                finishGame();
+            // 既に同じモードなら停止
+            if (isAuto === speedMode) {
+                stopAuto();
+                return;
             }
+            
+            stopAuto();
+            isAuto = speedMode;
+            
+            // ボタンのUI変更
+            document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`auto-${speedMode}`).classList.add('active');
+            document.getElementById('spin-btn').disabled = true;
+
+            let intervalMs = 2000; // 低
+            if (speedMode === 2) intervalMs = 1000; // 中
+            if (speedMode === 3) intervalMs = 400;  // 高
+
+            autoInterval = setInterval(() => {
+                playOneGame(false);
+            }, intervalMs);
         }
 
-        function finishGame() {
-            btnSpin.disabled = false;
-            
-            // 払い出し処理
-            let pay = 0;
-            if (currentRole === 'replay') { pay = 3; log('リプレイ'); }
-            if (currentRole === 'bell') { pay = 8; log('ベル (+8枚)'); }
-            if (currentRole === 'rare') { pay = 2; log('レア役 (+2枚)'); }
-            
-            if (pay > 0 && currentRole !== 'replay') {
-                netTokens += pay;
-                playSound('pay');
-            }
-            
-            // ボーナス終了判定
-            if (mode === 'bonus' && atGamesLeft <= 0) {
-                mode = 'pullback';
-                bonusType = null;
-                log('ボーナス終了。32Gの引き戻し(天国)へ。');
-            }
-            
-            updateDisplay();
+        function stopAuto() {
+            if (autoInterval) clearInterval(autoInterval);
+            isAuto = 0;
+            document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('spin-btn').disabled = false;
         }
+
+        // イベントスキップ機能（一瞬で条件まで回す）
+        function executeSkip() {
+            if (isSkipping) return;
+            stopAuto();
+            isSkipping = true;
+            
+            log("スキップ実行中...");
+            
+            // UIを一時的に更新停止（ブラウザフリーズ防止のためループ制限付き）
+            let loopCount = 0;
+            let startMode = mode;
+            let startGames = games;
+
+            while (loopCount < 2000) { // 安全装置（最大2000Gスキップで一旦停止）
+                loopCount++;
+                playOneGame(true); // isMuted = true でUI更新を省く
+
+                // スキップ終了判定
+                if (startMode === 'normal') {
+                    // 通常時: ボーナス当選(告知状態)になったらストップ
+                    if (pendingBonus !== null || mode === 'bonus') break;
+                } else if (startMode === 'bonus') {
+                    // ボーナス中: ボーナスが終了したらストップ
+                    if (mode !== 'bonus') break;
+                } else if (startMode === 'pullback') {
+                    // 引き戻し中: ボーナス当選(ストック放出等) or 32G抜けたらストップ
+                    if (pendingBonus !== null || mode === 'bonus' || mode === 'normal') break;
+                }
+            }
+
+            // ランプ状態の整合性
+            setLamp(mode === 'bonus' || pendingBonus !== null);
+            if (pendingBonus !== null) {
+                setLamp(true);
+                log(`<span class="danger">告知発生！(次Gボーナス)</span>`);
+            }
+
+            isSkipping = false;
+            updateUI();
+            log(`スキップ完了 (${loopCount}G消化)`);
+        }
+
+        // 起動時
+        initMachine();
+
     </script>
 </body>
 </html>
