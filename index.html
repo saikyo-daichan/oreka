@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oki-Style Slot Simulator V8</title>
+    <title>Oki-Style Slot Simulator V8 - Ura Rireki</title>
     <style>
         body {
             background-color: #111;
@@ -13,6 +13,7 @@
             margin: 0;
             padding: 10px;
             box-sizing: border-box;
+            position: relative; /* 裏履歴用 */
         }
         #machine {
             background-color: #8b0000;
@@ -163,7 +164,7 @@
         #spin-btn:disabled { background-color: #333; color: #666; }
         .skip-btn { background-color: #9900cc; color: #fff; }
 
-        /* クレジット（差枚）ボックス */
+        /* クレジットボックス */
         .credit-box {
             background-color: #000;
             border: 2px solid #444;
@@ -201,6 +202,60 @@
             color: #bbb;
             margin-top: 10px;
             line-height: 1.4;
+        }
+
+        /* 裏履歴用UI */
+        #ura-btn {
+            font-size: 2.5rem;
+            margin-top: 20px;
+            cursor: pointer;
+            user-select: none;
+            display: inline-block;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        #ura-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 400px;
+            background-color: rgba(10, 10, 10, 0.98);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 15px;
+            z-index: 1000;
+            box-shadow: 0 0 30px #00ff00;
+            box-sizing: border-box;
+        }
+        #ura-modal h3 {
+            margin-top: 0;
+            color: #00ff00;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 5px;
+        }
+        #ura-content {
+            max-height: 300px;
+            overflow-y: auto;
+            text-align: left;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+            line-height: 1.5;
+            color: #ddd;
+        }
+        #ura-content div {
+            border-bottom: 1px dotted #444;
+            padding: 4px 0;
+        }
+        .ura-big { color: #ff5555; font-weight: bold; }
+        .ura-reg { color: #55aaff; font-weight: bold; }
+        .close-btn {
+            background-color: #444;
+            color: #fff;
+            width: 100%;
+            padding: 10px;
         }
     </style>
 </head>
@@ -246,6 +301,14 @@
         </div>
 
         <div id="console"></div>
+    </div>
+
+    <div id="ura-btn" onclick="toggleUra()">📗</div>
+
+    <div id="ura-modal">
+        <h3>裏履歴 (ストック獲得ログ)</h3>
+        <div id="ura-content">ここに履歴が表示されます</div>
+        <button class="close-btn" onclick="toggleUra()">閉じる</button>
     </div>
 
     <script>
@@ -305,7 +368,7 @@
            内部状態・パラメータ
         ======================================================== */
         let games = 0;
-        let points = 0; // PTシステム導入
+        let points = 0; 
         let netTokens = 0;
         let chainTokens = 0;
         let mode = 'normal';
@@ -315,9 +378,8 @@
         let atGamesLeft = 0;
         
         let hiddenMode = 'A';
-        let currentCeiling = 1200; // 初期1200PT
+        let currentCeiling = 1200; 
         
-        // PT特化タイム関連
         let isPtSpecial = false;
         let ptSpecialGamesLeft = 0;
 
@@ -331,6 +393,9 @@
         let displayedNetTokens = 0;
         let tokenAnimInterval = null;
 
+        // 裏履歴データ
+        let uraLogs = [];
+
         const domGames = document.getElementById('game-count');
         const domPt = document.getElementById('pt-display');
         const domNet = document.getElementById('net-tokens');
@@ -339,13 +404,39 @@
         const consoleEl = document.getElementById('console');
         const reels = [document.getElementById('reel-0'), document.getElementById('reel-1'), document.getElementById('reel-2')];
         const topLamp = document.getElementById('top-lamp');
+        const uraContent = document.getElementById('ura-content');
+        const uraModal = document.getElementById('ura-modal');
 
         function getBonusTag(type) {
             return type === 'BIG' ? '<span style="color:#ff5555; font-weight:bold;">BIG</span>' : '<span style="color:#55aaff; font-weight:bold;">REG</span>';
         }
 
         /* ========================================================
-           モード移行ロジック (天井がPT依存に変更)
+           裏履歴ロジック
+        ======================================================== */
+        function addUraLog(type, reason) {
+            const typeStr = type === 'BIG' ? '<span class="ura-big">BIG</span>' : '<span class="ura-reg">REG</span>';
+            const logMsg = `<div>${points}PT/${games}G ${reason}から${typeStr}ストック獲得</div>`;
+            uraLogs.unshift(logMsg);
+            
+            // 最大50件まで保存
+            if (uraLogs.length > 50) uraLogs.pop();
+            uraContent.innerHTML = uraLogs.join('');
+        }
+
+        function toggleUra() {
+            if (uraModal.style.display === 'block') {
+                uraModal.style.display = 'none';
+            } else {
+                uraModal.style.display = 'block';
+                if (uraLogs.length === 0) {
+                    uraContent.innerHTML = '<div>まだストック獲得履歴はありません。</div>';
+                }
+            }
+        }
+
+        /* ========================================================
+           モード移行ロジック
         ======================================================== */
         function setHiddenMode(isReset = false) {
             const r = Math.random();
@@ -378,7 +469,7 @@
         function initMachine() {
             setHiddenMode(true);
             log("設定変更(リセット)完了。");
-            checkStock(0.20, 0.20);
+            checkStock(0.20, 0.20, "リセット恩恵");
         }
 
         function log(msg) {
@@ -390,9 +481,7 @@
         }
 
         function flashTopLamp() {
-            // PT特化中なら光らせない(アニメーションを優先)
             if (isPtSpecial) return;
-
             let colorClass = 'flash-white';
             let r = Math.random();
             let s = stockQueue.length;
@@ -450,30 +539,38 @@
         }
 
         /* ========================================================
-           抽選ロジック
+           抽選ロジック (reasonを追加)
         ======================================================== */
-        function checkStock(bigProb, regProb) {
+        function checkStock(bigProb, regProb, reason) {
             let r = Math.random();
-            if (r < bigProb) stockQueue.push('BIG');
-            else if (r < (bigProb + regProb)) stockQueue.push('REG');
+            if (r < bigProb) {
+                stockQueue.push('BIG');
+                addUraLog('BIG', reason);
+            } else if (r < (bigProb + regProb)) {
+                stockQueue.push('REG');
+                addUraLog('REG', reason);
+            }
         }
 
-        function trigger75Loop() {
-            if (Math.random() < 0.5) stockQueue.push('BIG');
-            else stockQueue.push('REG');
+        function trigger75Loop(reason) {
+            if (Math.random() < 0.5) { stockQueue.push('BIG'); addUraLog('BIG', reason + "保証"); }
+            else { stockQueue.push('REG'); addUraLog('REG', reason + "保証"); }
+            
+            let loopCount = 1;
             while (true) {
                 let loopR = Math.random();
-                if (loopR < 0.30) stockQueue.push('BIG');
-                else if (loopR < 0.75) stockQueue.push('REG');
+                if (loopR < 0.30) { stockQueue.push('BIG'); addUraLog('BIG', `${reason}(${loopCount}連目)`); loopCount++; }
+                else if (loopR < 0.75) { stockQueue.push('REG'); addUraLog('REG', `${reason}(${loopCount}連目)`); loopCount++; }
                 else break;
             }
         }
         
-        function trigger25Loop() {
-            // 25%を成功する限りループ(最低保証なし)
+        function trigger25Loop(reason) {
+            let loopCount = 1;
             while (Math.random() < 0.25) {
-                if (Math.random() < 0.5) stockQueue.push('BIG');
-                else stockQueue.push('REG');
+                if (Math.random() < 0.5) { stockQueue.push('BIG'); addUraLog('BIG', `${reason}(${loopCount}連目)`); }
+                else { stockQueue.push('REG'); addUraLog('REG', `${reason}(${loopCount}連目)`); }
+                loopCount++;
             }
         }
 
@@ -506,21 +603,16 @@
                 return;
             }
 
-            const role = determineRole(); // 成立役を先に決定
+            const role = determineRole(); 
 
-            // PT特化タイムの管理
             if (mode !== 'bonus') {
                 if (isPtSpecial) {
                     ptSpecialGamesLeft--;
                     if (ptSpecialGamesLeft <= 0) {
-                        if (Math.random() < 0.20) {
-                            ptSpecialGamesLeft = 3; // 20%ループ
-                        } else {
-                            isPtSpecial = false;
-                        }
+                        if (Math.random() < 0.20) ptSpecialGamesLeft = 3; 
+                        else isPtSpecial = false;
                     }
                 } else {
-                    // レア役でPT特化抽選 (次ゲームから適用)
                     if (role.type === 'suika' || role.type === 'cherry' || role.type === 'fake_cherry') {
                         if (Math.random() < 0.20) {
                             isPtSpecial = true;
@@ -533,28 +625,25 @@
             if (mode !== 'bonus') {
                 games++;
                 
-                // 33G目 通常転落処理
                 if (mode === 'pullback' && games === 33) {
                     log(`32Gスルー 合計<span class="bonus-result">${chainTokens}枚獲得</span> 通常モードへ`);
                     mode = 'normal';
                     chainTokens = 0;
                     setHiddenMode(false);
-                    checkStock(0.30, 0.20);
+                    checkStock(0.30, 0.20, "引き戻し終了時");
                     miniLampColors = [];
                     hasTriggered10Lamps = false;
                     updateUI(); 
                 }
 
-                // PT加算処理
                 let oldPoints = points;
-                let ptGain = 1; // デフォルト (ベル、ハズレ等)
+                let ptGain = 1; 
                 if (role.type === 'replay') ptGain = 3;
                 else if (role.type === 'suika' || role.type === 'cherry' || role.type === 'fake_cherry') ptGain = 10;
                 
                 if (isPtSpecial) ptGain *= 2;
                 points += ptGain;
 
-                // 100PT毎のストック抽選 & 天国ゾーン確認
                 let oldHundreds = Math.floor(oldPoints / 100);
                 let newHundreds = Math.floor(points / 100);
                 if (newHundreds > oldHundreds) {
@@ -562,31 +651,27 @@
                     for (let i = 0; i < crosses; i++) {
                         let currentHundred = (oldHundreds + i + 1) * 100;
                         
-                        // 100PT毎の汎用ストック抽選
-                        checkStock(0.07, 0.08);
+                        checkStock(0.07, 0.08, `${currentHundred}PT到達`);
 
-                        // 天国 100PT到達時の恩恵
                         if (hiddenMode === 'Heaven' && currentHundred === 100) {
-                            checkStock(0.25, 0.25);
+                            checkStock(0.25, 0.25, "天国100PT到達");
                         }
                     }
                 }
 
-                // 天井到達チェック
                 if (points >= currentCeiling && oldPoints < currentCeiling) {
                     if (hiddenMode === 'Heaven') {
-                        // 天国天井(200PT) 確定1つ + 25%ループ
-                        if (Math.random() < 0.5) stockQueue.push('BIG'); else stockQueue.push('REG');
-                        trigger25Loop();
+                        if (Math.random() < 0.5) { stockQueue.push('BIG'); addUraLog('BIG', "天国天井(200PT)到達"); }
+                        else { stockQueue.push('REG'); addUraLog('REG', "天国天井(200PT)到達"); }
+                        trigger25Loop("天国天井25%ループ");
                     } else {
-                        // 通常/B天井
-                        checkStock(0.40, 0.60);
+                        checkStock(0.40, 0.60, "通常天井到達");
                     }
                     pendingBonus = stockQueue.shift();
                 }
             }
 
-            checkStock(0.0001, 0.0004); // 毎G抽選
+            checkStock(0.0001, 0.0004, "毎G抽選"); 
 
             netTokens += role.net;
             if (mode === 'bonus' || mode === 'pullback') chainTokens += role.net;
@@ -596,17 +681,16 @@
             else if (!isMuted) playSound('spin');
 
             if (mode === 'bonus') {
-                if (role.type === 'suika') checkStock(0.027, 0.003);
-                else if (role.type === 'cherry') checkStock(0.015, 0.035);
-                else if (role.type === 'blank') checkStock(0.0001, 0.0002);
+                if (role.type === 'suika') checkStock(0.027, 0.003, "ボーナス中のスイカ");
+                else if (role.type === 'cherry') checkStock(0.015, 0.035, "ボーナス中のチェリー");
+                else if (role.type === 'blank') checkStock(0.0001, 0.0002, "ボーナス中のハズレ");
             } else {
-                // 通常・引き戻し中のレア役ストック
+                // 本物レア役でのストック
                 if (role.type === 'suika' || role.type === 'cherry') {
-                    checkStock(0.02, 0.03);
+                    checkStock(0.02, 0.03, `${role.name}成立`);
                 }
             }
 
-            // ボーナス直撃抽選 (確率は1/920ずつへ変更)
             if (mode !== 'bonus' && !pendingBonus && points < currentCeiling) {
                 let isSelfDrawn = false; 
 
@@ -622,15 +706,14 @@
                 
                 if (!pendingBonus) {
                     const br = Math.random();
-                    if (br < (1/920)) { pendingBonus = 'BIG'; isSelfDrawn = true; } // 1/920 BIG
-                    else if (br < (2/920)) { pendingBonus = 'REG'; isSelfDrawn = true; } // 1/920 REG
+                    if (br < (1/920)) { pendingBonus = 'BIG'; isSelfDrawn = true; } 
+                    else if (br < (2/920)) { pendingBonus = 'REG'; isSelfDrawn = true; } 
                 }
 
                 if (isSelfDrawn && mode === 'pullback' && stockQueue.length === 0 && hasTriggered10Lamps) {
-                    trigger75Loop();
+                    trigger75Loop("自力引き戻し75%ループ");
                 }
 
-                // 引き戻し中ストック放出 (ゲーム数管理)
                 if (mode === 'pullback' && !pendingBonus && stockQueue.length > 0) {
                     if (Math.random() < (1/16) || games === 32) {
                         pendingBonus = stockQueue.shift();
@@ -638,7 +721,6 @@
                 }
             }
 
-            // ボーナス終了
             if (mode === 'bonus') {
                 atGamesLeft--;
                 if (atGamesLeft <= 0) {
@@ -661,7 +743,7 @@
 
         function executeBonusReveal(isMuted) {
             let hitGame = games; 
-            let hitPt = points; // 当選時のPTを記録
+            let hitPt = points; 
             
             games++;
             netTokens -= 3;
@@ -705,14 +787,12 @@
             currentBonus = type;
             atGamesLeft = (type === 'BIG') ? 60 : 20;
             
-            // ボーナス開始でG数とPTをリセット、特化タイムも強制終了
             games = 0; 
             points = 0;
             isPtSpecial = false;
             ptSpecialGamesLeft = 0;
             bonusGainedTokens = 0; 
             
-            // ミニランプ点灯ロジック (BIG=赤2, REG=白1, 10個目はBIGのみ)
             if (type === 'BIG') {
                 if (miniLampColors.length < 10) miniLampColors.push('red');
                 if (miniLampColors.length < 10) miniLampColors.push('red');
@@ -722,10 +802,10 @@
 
             if (miniLampColors.length === 10 && !hasTriggered10Lamps) {
                 hasTriggered10Lamps = true;
-                trigger75Loop();
+                trigger75Loop("ミニランプ10個到達");
             }
 
-            if (type === 'REG') checkStock(0.15, 0.05);
+            if (type === 'REG') checkStock(0.15, 0.05, "REG成立恩恵");
 
             if (!isMuted) {
                 playSound('kyuin');
@@ -741,7 +821,7 @@
         ======================================================== */
         function updateUI() {
             domGames.innerText = games;
-            domPt.innerText = points; // PT表示
+            domPt.innerText = points;
             
             updateTokenDisplay(netTokens);
             
@@ -754,7 +834,6 @@
             }
             domStatus.innerHTML = statusText;
 
-            // ミニランプUI更新
             for (let i = 1; i <= 10; i++) {
                 const ml = document.getElementById(`ml-${i}`);
                 ml.className = 'mini-lamp'; 
@@ -765,11 +844,10 @@
             }
             setLamp(pendingBonus !== null);
 
-            // PT特化タイムのトップランプ制御
             if (isPtSpecial) {
                 topLamp.className = 'pt-special-active';
             } else if (topLamp.className === 'pt-special-active') {
-                topLamp.className = ''; // 通常時に戻す
+                topLamp.className = ''; 
             }
         }
 
