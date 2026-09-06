@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oki-Style Slot Simulator V13 - Ura REG & Premium BIG</title>
+    <title>Oki-Style Slot Simulator V14 - G-Reduction & Skip Lamp</title>
     <style>
         body {
             background-color: #111;
@@ -441,6 +441,8 @@
         
         let hiddenMode = 'A';
         let currentCeiling = 1200; 
+        let pullbackCeiling = 32; // ボーナス後の引き戻し天井（短縮あり）
+        let bonusStockCount = 0;  // ボーナス中に獲得したストック数
         
         let isPtSpecial = false;
         let ptSpecialGamesLeft = 0;
@@ -543,6 +545,7 @@
 
         function initMachine() {
             setHiddenMode(true);
+            pullbackCeiling = 32;
             log("設定変更(リセット)完了。");
             checkStock(0.20, 0.20, "リセット恩恵");
         }
@@ -623,10 +626,13 @@
             if (r < bigProb) {
                 stockQueue.push('BIG');
                 addUraLog('BIG', reason, false);
+                return true;
             } else if (r < (bigProb + regProb)) {
                 stockQueue.push('REG');
                 addUraLog('REG', reason, false);
+                return true;
             }
+            return false;
         }
 
         function trigger75Loop(reason) {
@@ -737,10 +743,12 @@
             if (mode !== 'bonus') {
                 games++;
                 
-                if (mode === 'pullback' && games === 33) {
-                    log(`32Gスルー 合計<span class="bonus-result">${chainTokens}枚獲得</span> 通常モードへ`);
+                // 引き戻しモード終了時（可変天井到達後）に通常転落
+                if (mode === 'pullback' && games === pullbackCeiling + 1) {
+                    log(`${pullbackCeiling}Gスルー 合計<span class="bonus-result">${chainTokens}枚獲得</span> 通常モードへ`);
                     mode = 'normal';
                     chainTokens = 0;
+                    pullbackCeiling = 32; 
                     
                     let isResetEquivalent = hasTriggered10Lamps || hasDoneRainbowBIG;
                     setHiddenMode(isResetEquivalent);
@@ -797,14 +805,29 @@
             else if (!isMuted) playSound('spin');
 
             if (mode === 'bonus') {
-                if (currentBonus === 'REG') {
-                    if (role.type === 'suika') checkStock(0.10, 0.025, "REG中のスイカ");
-                    else if (role.type === 'cherry') checkStock(0.075, 0.175, "REG中のチェリー");
-                    else if (role.type === 'blank') checkStock(0.0015, 0.0015, "REG中のハズレ");
-                } else {
-                    if (role.type === 'suika') checkStock(0.047, 0.003, "BIG中のスイカ");
-                    else if (role.type === 'cherry') checkStock(0.03, 0.07, "BIG中のチェリー");
-                    else if (role.type === 'blank') checkStock(0.0005, 0.0005, "BIG中のハズレ");
+                if (role.type === 'suika' || role.type === 'cherry') {
+                    if (bonusStockCount < 1) {
+                        let hit = false;
+                        if (currentBonus === 'REG') {
+                            if (role.type === 'suika') hit = checkStock(0.10, 0.025, "REG中のスイカ");
+                            else if (role.type === 'cherry') hit = checkStock(0.075, 0.175, "REG中のチェリー");
+                        } else {
+                            if (role.type === 'suika') hit = checkStock(0.047, 0.003, "BIG中のスイカ");
+                            else if (role.type === 'cherry') hit = checkStock(0.03, 0.07, "BIG中のチェリー");
+                        }
+                        if (hit) bonusStockCount++;
+                    } else {
+                        // ストック獲得済みのレア役は次回告知G数を短縮
+                        pullbackCeiling = Math.max(2, pullbackCeiling - 5);
+                        addUraLogMisc(`${role.name}成立: 次回告知最大 ${pullbackCeiling}Gに短縮`);
+                    }
+                } else if (role.type === 'blank') {
+                    if (bonusStockCount < 1) {
+                        let hit = false;
+                        if (currentBonus === 'REG') hit = checkStock(0.0015, 0.0015, "REG中のハズレ");
+                        else hit = checkStock(0.0005, 0.0005, "BIG中のハズレ");
+                        if (hit) bonusStockCount++;
+                    }
                 }
             } else {
                 if (role.type === 'blank') checkStock(0.0001, 0.0004, "通常ハズレ");
@@ -833,8 +856,9 @@
                 }
             }
 
+            // ストック放出判定（短縮された天井を使用）
             if (mode === 'pullback' && !pendingBonus && stockQueue.length > 0) {
-                if (stockQueue[0] === 'RAINBOW_BIG' || Math.random() < (1/16) || games === 32) {
+                if (stockQueue[0] === 'RAINBOW_BIG' || Math.random() < (1/16) || games >= pullbackCeiling) {
                     pendingBonus = stockQueue.shift();
                 }
             }
@@ -933,6 +957,10 @@
             isBellRush = false; 
             bonusGainedTokens = 0; 
             
+            // ボーナス開始時の初期化
+            bonusStockCount = 0;
+            pullbackCeiling = 32;
+            
             if (type === 'RAINBOW_BIG') {
                 premiumThreshold = netTokens + 2250;
                 hasDoneRainbowBIG = true;
@@ -956,10 +984,8 @@
                     hasTriggered10Lamps = true;
                     
                     if (miniLampColors.every(c => c === 'white')) {
-                        // 裏REG
                         trigger95RegLoop("裏REG突入");
                     } else {
-                        // 通常の10個到達
                         if (Math.random() < 0.05) {
                             stockQueue = [];
                             stockQueue.unshift('RAINBOW_BIG');
@@ -973,7 +999,8 @@
                 }
             }
 
-            if (type === 'REG') checkStock(0.15, 0.05, "REG成立恩恵");
+            // REG恩恵の調整
+            if (type === 'REG') checkStock(0.0625, 0.0625, "REG成立恩恵");
 
             if (!isMuted) {
                 playSound('kyuin');
@@ -1055,6 +1082,11 @@
 
             isSkipping = false;
             updateUI();
+            
+            // スキップでボーナスを終了して引き戻しに入った直後の場合、トップランプを示唆
+            if (startMode === 'bonus' && mode === 'pullback' && games === 0) {
+                flashTopLamp();
+            }
         }
 
         initMachine();
