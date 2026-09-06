@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oki-Style Slot Simulator V2</title>
+    <title>Oki-Style Slot Simulator V3</title>
     <style>
         body {
             background-color: #111;
@@ -29,7 +29,7 @@
         #lamp-container {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             padding: 0 20px;
         }
         .lamp {
@@ -45,6 +45,31 @@
             box-shadow: 0 0 25px #ff0000, 0 0 50px #ffaaaa;
             border-color: #ffaaaa;
         }
+        /* ミニランプ */
+        #mini-lamps {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 15px;
+            padding: 5px;
+            background-color: #000;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+        .mini-lamp {
+            width: 12px;
+            height: 12px;
+            background-color: #222;
+            border-radius: 50%;
+            border: 1px solid #000;
+            box-shadow: inset 0 0 3px #000;
+        }
+        .mini-lamp.lit {
+            background-color: #00ffcc;
+            box-shadow: 0 0 8px #00ffcc, inset 0 0 5px #ffffff;
+            border-color: #ffffff;
+        }
+
         /* パネル情報 */
         .info-panel {
             background-color: #000;
@@ -58,6 +83,7 @@
         }
         .highlight { color: #00ff00; font-weight: bold; }
         .danger { color: #ff3333; font-weight: bold; }
+        .bonus-result { color: #ffd700; font-weight: bold; }
         
         /* リール */
         #reels {
@@ -125,13 +151,25 @@
             <div class="lamp" id="lamp-right"></div>
         </div>
 
+        <div id="mini-lamps">
+            <div class="mini-lamp" id="ml-1"></div>
+            <div class="mini-lamp" id="ml-2"></div>
+            <div class="mini-lamp" id="ml-3"></div>
+            <div class="mini-lamp" id="ml-4"></div>
+            <div class="mini-lamp" id="ml-5"></div>
+            <div class="mini-lamp" id="ml-6"></div>
+            <div class="mini-lamp" id="ml-7"></div>
+            <div class="mini-lamp" id="ml-8"></div>
+            <div class="mini-lamp" id="ml-9"></div>
+            <div class="mini-lamp" id="ml-10"></div>
+        </div>
+
         <div class="info-panel">
             <div>G数: <span id="game-count" class="highlight">0</span> (天井:<span id="ceiling-display">400</span>)</div>
             <div>差枚: <span id="net-tokens">0</span></div>
         </div>
-        <div class="info-panel">
+        <div class="info-panel" style="justify-content: center;">
             <div>状態: <span id="status-display">通常</span></div>
-            <div>裏ストック: <span id="stock-display">0</span></div>
         </div>
 
         <div id="reels">
@@ -166,8 +204,13 @@
         let pendingBonus = null; // 次G告知用
         let currentBonus = null;
         let atGamesLeft = 0;
-        let isReset = true;
         let currentCeiling = 400; // リセット時400G、それ以外600G
+        let bonusGainedTokens = 0; // ボーナス中の獲得枚数
+
+        // ミニランプ関連
+        let miniLampCount = 0;
+        let hasTriggered5Lamps = false;
+        let hasTriggered10Lamps = false;
 
         let autoInterval = null;
         let isAuto = 0;
@@ -176,7 +219,6 @@
         const domGames = document.getElementById('game-count');
         const domNet = document.getElementById('net-tokens');
         const domStatus = document.getElementById('status-display');
-        const domStock = document.getElementById('stock-display');
         const domCeiling = document.getElementById('ceiling-display');
         const lamps = [document.getElementById('lamp-left'), document.getElementById('lamp-right')];
         const consoleEl = document.getElementById('console');
@@ -185,7 +227,7 @@
         // 初期化（リセット恩恵）
         function initMachine() {
             log("設定変更(リセット)完了。天井400G");
-            checkStock(0.20, 0.20, "リセット恩恵");
+            checkStock(0.20, 0.20);
         }
 
         function log(msg) {
@@ -200,33 +242,48 @@
         /* ========================================================
            抽選ロジック
         ======================================================== */
-        function checkStock(bigProb, regProb, reason) {
+        function checkStock(bigProb, regProb) {
+            // 履歴にストック獲得ログは一切出さない（完全隠れストック）
             let r = Math.random();
             if (r < bigProb) {
                 stockQueue.push('BIG');
-                log(`<span class="highlight">【ストック獲得】${reason} (BIG)</span>`);
             } else if (r < (bigProb + regProb)) {
                 stockQueue.push('REG');
-                log(`<span class="highlight">【ストック獲得】${reason} (REG)</span>`);
+            }
+        }
+
+        function trigger75Loop() {
+            // 保証分
+            if (Math.random() < 0.5) stockQueue.push('BIG');
+            else stockQueue.push('REG');
+
+            // 75%ループ分
+            while (true) {
+                let loopR = Math.random();
+                if (loopR < 0.30) {
+                    stockQueue.push('BIG');
+                } else if (loopR < 0.75) { // 30% BIG + 45% REG = 75%継続
+                    stockQueue.push('REG');
+                } else {
+                    break; // 25%漏れで終了
+                }
             }
         }
 
         function determineRole() {
             const r = Math.random();
             if (mode === 'bonus') {
-                // ボーナス中 (純増約3.0枚想定の小役確率)
                 if (r < 0.65) return { type: 'medium_bell', pay: 8, net: 5, name: '中ベル', symbol: '🔔' };
                 if (r < 0.80) return { type: 'replay', pay: 3, net: 0, name: 'リプレイ', symbol: '🔄' };
                 if (r < 0.82) return { type: 'suika', pay: 6, net: 3, name: 'スイカ', symbol: '🍉' };
                 if (r < 0.83) return { type: 'cherry', pay: 2, net: -1, name: 'チェリー', symbol: '🍒' };
                 return { type: 'blank', pay: 0, net: -3, name: 'ハズレ', symbol: '❌' };
             } else {
-                // 通常時・引き戻し中
-                if (r < 0.1515) return { type: 'replay', pay: 3, net: 0, name: 'リプレイ', symbol: '🔄' }; // 1/6.6
-                if (r < 0.2814) return { type: 'small_bell', pay: 6, net: 3, name: '小ベル', symbol: '🔔' }; // 1/7.7
-                if (r < 0.3281) return { type: 'medium_bell', pay: 11, net: 8, name: '中ベル', symbol: '🍉' }; // 1/21.4
-                if (r < 0.3476) return { type: 'suika', pay: 9, net: 6, name: 'スイカ', symbol: '🍉' }; // 1/51.2
-                if (r < 0.3574) return { type: 'cherry', pay: 5, net: 2, name: 'チェリー', symbol: '🍒' }; // 1/102.4
+                if (r < 0.1515) return { type: 'replay', pay: 3, net: 0, name: 'リプレイ', symbol: '🔄' };
+                if (r < 0.2814) return { type: 'small_bell', pay: 6, net: 3, name: '小ベル', symbol: '🔔' };
+                if (r < 0.3281) return { type: 'medium_bell', pay: 11, net: 8, name: '中ベル', symbol: '🍉' };
+                if (r < 0.3476) return { type: 'suika', pay: 9, net: 6, name: 'スイカ', symbol: '🍉' };
+                if (r < 0.3574) return { type: 'cherry', pay: 5, net: 2, name: 'チェリー', symbol: '🍒' };
                 return { type: 'blank', pay: 0, net: -3, name: 'ハズレ', symbol: '❌' };
             }
         }
@@ -236,71 +293,78 @@
             if (pendingBonus && mode !== 'bonus') {
                 triggerBonus(pendingBonus, isMuted);
                 pendingBonus = null;
-                return; // ボーナス開始Gはゲーム数を進めない
+                return;
             }
 
             if (mode !== 'bonus') {
                 games++;
                 
                 // 50G毎ストック抽選
-                if (games % 50 === 0) checkStock(0.07, 0.08, "50G経過");
+                if (games % 50 === 0) checkStock(0.07, 0.08);
 
                 // 天井到達
                 if (games >= currentCeiling) {
                     log(`<span class="danger">天井到達 (${currentCeiling}G)</span>`);
-                    checkStock(0.40, 0.60, "天井恩恵");
-                    // 天井は即告知としてストックから放出
+                    checkStock(0.40, 0.60);
                     pendingBonus = stockQueue.shift();
                 }
             }
 
             // 毎ゲーム抽選ストック
-            checkStock(0.0001, 0.0004, "毎G抽選");
+            checkStock(0.0001, 0.0004);
 
             const role = determineRole();
             netTokens += role.net;
 
-            // レア役ストック抽選
-            if (role.type === 'suika' || role.type === 'cherry') {
-                checkStock(0.02, 0.03, "レア役成立");
+            // ボーナス中の獲得枚数加算
+            if (mode === 'bonus') {
+                bonusGainedTokens += role.net;
             }
 
-            // ボーナス抽選 (通常時・引き戻し中でまだ告知予定がない場合)
+            // レア役ストック抽選
+            if (role.type === 'suika' || role.type === 'cherry') {
+                checkStock(0.02, 0.03);
+            }
+
+            // ボーナス抽選 (通常時・引き戻し中)
             if (mode !== 'bonus' && !pendingBonus && games < currentCeiling) {
-                // レア役直撃
+                let isSelfDrawn = false; // 自力当選フラグ
+
                 if (role.type === 'suika') {
                     const rr = Math.random();
-                    if (rr < 0.027) pendingBonus = 'BIG';
-                    else if (rr < 0.030) pendingBonus = 'REG';
+                    if (rr < 0.027) { pendingBonus = 'BIG'; isSelfDrawn = true; }
+                    else if (rr < 0.030) { pendingBonus = 'REG'; isSelfDrawn = true; }
                 } else if (role.type === 'cherry') {
                     const rr = Math.random();
-                    if (rr < 0.015) pendingBonus = 'BIG';
-                    else if (rr < 0.050) pendingBonus = 'REG';
+                    if (rr < 0.015) { pendingBonus = 'BIG'; isSelfDrawn = true; }
+                    else if (rr < 0.050) { pendingBonus = 'REG'; isSelfDrawn = true; }
                 }
                 
-                // 毎G通常抽選 1/230
                 if (!pendingBonus) {
                     const br = Math.random();
-                    if (br < (1/460)) pendingBonus = 'BIG';
-                    else if (br < (1/230)) pendingBonus = 'REG';
+                    if (br < (1/460)) { pendingBonus = 'BIG'; isSelfDrawn = true; }
+                    else if (br < (1/230)) { pendingBonus = 'REG'; isSelfDrawn = true; }
                 }
 
-                // 引き戻し中(32G以内)のストック放出ロジック
+                // 【特化機能】10連ランプ達成後 ＆ ストック0 ＆ 引き戻し中 に自力当選した場合
+                if (isSelfDrawn && mode === 'pullback' && stockQueue.length === 0 && hasTriggered10Lamps) {
+                    trigger75Loop();
+                }
+
+                // 引き戻し中のストック放出
                 if (mode === 'pullback' && !pendingBonus && stockQueue.length > 0) {
-                    // 残りゲーム数に応じて均等に放出確率を上げる (32G目で100%)
                     const releaseRate = 1 / (33 - games);
                     if (Math.random() < releaseRate) {
                         pendingBonus = stockQueue.shift();
-                        log("ストック放出当選！(次G告知)");
                     }
                 }
             }
 
-            // モード管理
+            // モード管理・ボーナス終了判定
             if (mode === 'bonus') {
                 atGamesLeft--;
                 if (atGamesLeft <= 0) {
-                    log("ボーナス終了。32G引き戻しゾーンへ。");
+                    log(`<span class="bonus-result">${currentBonus}終了 ${bonusGainedTokens}枚獲得 引き戻しモードへ</span>`);
                     mode = 'pullback';
                     currentBonus = null;
                     setLamp(false);
@@ -308,10 +372,14 @@
             } else if (mode === 'pullback' && games === 32) {
                 log("32Gスルー。通常モードへ。");
                 mode = 'normal';
-                checkStock(0.30, 0.20, "引き戻し終了時");
+                checkStock(0.30, 0.20);
+                
+                // 引き戻し抜けでミニランプ消滅
+                miniLampCount = 0;
+                hasTriggered5Lamps = false;
+                hasTriggered10Lamps = false;
             }
 
-            // 演出UI更新 (スキップ中以外)
             if (!isMuted) {
                 reels.forEach(r => r.innerText = role.symbol);
                 updateUI();
@@ -322,11 +390,28 @@
             mode = 'bonus';
             currentBonus = type;
             atGamesLeft = (type === 'BIG') ? 60 : 20;
-            games = 0; // ボーナス当選でG数リセット
-            currentCeiling = 600; // リセット以外は600G天井
+            games = 0;
+            currentCeiling = 600;
+            bonusGainedTokens = 0; // ボーナス獲得枚数リセット
             
+            // ミニランプ加算
+            miniLampCount += (type === 'BIG') ? 2 : 1;
+            if (miniLampCount > 10) miniLampCount = 10;
+
+            // ランプ5つ到達時
+            if (miniLampCount >= 5 && !hasTriggered5Lamps) {
+                hasTriggered5Lamps = true;
+                checkStock(0.05, 0.15);
+            }
+
+            // ランプ10つ到達時
+            if (miniLampCount === 10 && !hasTriggered10Lamps) {
+                hasTriggered10Lamps = true;
+                trigger75Loop();
+            }
+
             if (type === 'REG') {
-                checkStock(0.15, 0.05, "REG成立恩恵");
+                checkStock(0.15, 0.05);
             }
 
             if (!isMuted) {
@@ -343,7 +428,6 @@
             domGames.innerText = games;
             domNet.innerText = netTokens;
             domNet.style.color = netTokens >= 0 ? '#00ff00' : '#ff3333';
-            domStock.innerText = stockQueue.length;
             domCeiling.innerText = currentCeiling;
             
             let statusText = '通常';
@@ -351,6 +435,13 @@
             else if (mode === 'pullback') statusText = `引き戻し`;
             
             domStatus.innerText = statusText;
+
+            // ミニランプのUI更新
+            for (let i = 1; i <= 10; i++) {
+                const ml = document.getElementById(`ml-${i}`);
+                if (i <= miniLampCount) ml.classList.add('lit');
+                else ml.classList.remove('lit');
+            }
         }
 
         function manualSpin() {
@@ -360,24 +451,18 @@
 
         function toggleAuto(speedMode) {
             if (isSkipping) return;
-            
-            // 既に同じモードなら停止
-            if (isAuto === speedMode) {
-                stopAuto();
-                return;
-            }
+            if (isAuto === speedMode) { stopAuto(); return; }
             
             stopAuto();
             isAuto = speedMode;
             
-            // ボタンのUI変更
             document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(`auto-${speedMode}`).classList.add('active');
             document.getElementById('spin-btn').disabled = true;
 
-            let intervalMs = 2000; // 低
-            if (speedMode === 2) intervalMs = 1000; // 中
-            if (speedMode === 3) intervalMs = 400;  // 高
+            let intervalMs = 2000;
+            if (speedMode === 2) intervalMs = 1000;
+            if (speedMode === 3) intervalMs = 400;
 
             autoInterval = setInterval(() => {
                 playOneGame(false);
@@ -391,37 +476,27 @@
             document.getElementById('spin-btn').disabled = false;
         }
 
-        // イベントスキップ機能（一瞬で条件まで回す）
         function executeSkip() {
             if (isSkipping) return;
             stopAuto();
             isSkipping = true;
             
-            log("スキップ実行中...");
-            
-            // UIを一時的に更新停止（ブラウザフリーズ防止のためループ制限付き）
             let loopCount = 0;
             let startMode = mode;
-            let startGames = games;
 
-            while (loopCount < 2000) { // 安全装置（最大2000Gスキップで一旦停止）
+            while (loopCount < 2000) {
                 loopCount++;
-                playOneGame(true); // isMuted = true でUI更新を省く
+                playOneGame(true);
 
-                // スキップ終了判定
                 if (startMode === 'normal') {
-                    // 通常時: ボーナス当選(告知状態)になったらストップ
                     if (pendingBonus !== null || mode === 'bonus') break;
                 } else if (startMode === 'bonus') {
-                    // ボーナス中: ボーナスが終了したらストップ
                     if (mode !== 'bonus') break;
                 } else if (startMode === 'pullback') {
-                    // 引き戻し中: ボーナス当選(ストック放出等) or 32G抜けたらストップ
                     if (pendingBonus !== null || mode === 'bonus' || mode === 'normal') break;
                 }
             }
 
-            // ランプ状態の整合性
             setLamp(mode === 'bonus' || pendingBonus !== null);
             if (pendingBonus !== null) {
                 setLamp(true);
@@ -430,7 +505,6 @@
 
             isSkipping = false;
             updateUI();
-            log(`スキップ完了 (${loopCount}G消化)`);
         }
 
         // 起動時
