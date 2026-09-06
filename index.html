@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oki-Style Slot Simulator V4</title>
+    <title>Oki-Style Slot Simulator V5</title>
     <style>
         body {
             background-color: #111;
@@ -223,7 +223,6 @@
                 audioCtx.resume();
             }
         }
-        // 画面のどこかを触ったらオーディオを有効化
         document.body.addEventListener('click', initAudio, { once: true });
         document.body.addEventListener('touchstart', initAudio, { once: true });
 
@@ -297,7 +296,6 @@
         const reels = [document.getElementById('reel-0'), document.getElementById('reel-1'), document.getElementById('reel-2')];
         const topLamp = document.getElementById('top-lamp');
 
-        // モードセット関数 (1:1:1)
         function setHiddenMode() {
             const r = Math.random();
             if (r < 1/3) { hiddenMode = 'A'; currentCeiling = 600; }
@@ -305,7 +303,6 @@
             else { hiddenMode = 'Heaven'; currentCeiling = 100; }
         }
 
-        // 初期化
         function initMachine() {
             setHiddenMode();
             log("設定変更(リセット)完了。");
@@ -320,26 +317,27 @@
             lamps.forEach(l => state ? l.classList.add('flash') : l.classList.remove('flash'));
         }
 
-        // 上部ストック示唆ランプ
+        // 上部ストック示唆ランプ (提供された確率に完全準拠)
         function flashTopLamp() {
             let colorClass = 'flash-white';
             let r = Math.random();
             let s = stockQueue.length;
 
             if (s >= 3) {
-                if (r < 0.50) colorClass = 'flash-rainbow';
-                else if (r < 0.80) colorClass = 'flash-red';
-                else if (r < 0.95) colorClass = 'flash-green';
-                else colorClass = 'flash-blue';
-            } else if (s >= 1) {
-                if (r < 0.30) colorClass = 'flash-red';
-                else if (r < 0.70) colorClass = 'flash-green';
-                else if (r < 0.90) colorClass = 'flash-blue';
-                else colorClass = 'flash-white';
-            } else {
-                if (r < 0.05) colorClass = 'flash-green'; // トロル(罠)
-                else if (r < 0.25) colorClass = 'flash-blue';
-                else colorClass = 'flash-white';
+                if (r < 0.005) colorClass = 'flash-rainbow'; // 0.5%
+                else if (r < 0.030) colorClass = 'flash-red'; // 2.5%
+                else if (r < 0.100) colorClass = 'flash-green'; // 7%
+                else if (r < 0.350) colorClass = 'flash-blue'; // 25%
+                else colorClass = 'flash-white'; // 65%
+            } else if (s >= 1) { // 1 or 2
+                if (r < 0.015) colorClass = 'flash-red'; // 1.5%
+                else if (r < 0.080) colorClass = 'flash-green'; // 6.5%
+                else if (r < 0.300) colorClass = 'flash-blue'; // 22%
+                else colorClass = 'flash-white'; // 70%
+            } else { // 0
+                if (r < 0.050) colorClass = 'flash-green'; // 5%
+                else if (r < 0.250) colorClass = 'flash-blue'; // 20%
+                else colorClass = 'flash-white'; // 75%
             }
 
             topLamp.className = colorClass;
@@ -376,7 +374,6 @@
                 if (r < 0.83) return { type: 'cherry', pay: 2, net: -1, name: 'チェリー', symbol: '🍒' };
                 return { type: 'blank', pay: 0, net: -3, name: 'ハズレ', symbol: '❌' };
             } else {
-                // ストックあり時は1/25.6で外チェリー(ボーナス抽選なし)をねじ込む
                 if (stockQueue.length > 0 && Math.random() < (1/25.6)) {
                     return { type: 'fake_cherry', pay: 2, net: -1, name: 'チェリー', symbol: '🍒' }; 
                 }
@@ -391,7 +388,7 @@
         }
 
         function playOneGame(isMuted = false) {
-            initAudio(); // 念のため毎G実行(状態がsuspendedなら復帰)
+            initAudio();
 
             // ボーナス告知状態の場合、図柄を揃える演出へ
             if (pendingBonus && mode !== 'bonus') {
@@ -401,20 +398,32 @@
 
             if (mode !== 'bonus') {
                 games++;
-                // 天国モード時の50Gストック
-                if (hiddenMode === 'Heaven' && games === 50) checkStock(0.5, 0.5);
                 
+                // 【修正】33G目開始時(32Gで告知がなかった場合)に通常転落処理
+                if (mode === 'pullback' && games === 33) {
+                    log(`32Gスルー 合計<span class="bonus-result">${chainTokens}枚獲得</span> 通常モードへ`);
+                    mode = 'normal';
+                    chainTokens = 0;
+                    setHiddenMode();
+                    checkStock(0.30, 0.20);
+                    
+                    miniLampCount = 0;
+                    hasTriggered5Lamps = false;
+                    hasTriggered10Lamps = false;
+                    updateUI(); // 消滅を即反映
+                }
+
+                if (hiddenMode === 'Heaven' && games === 50) checkStock(0.5, 0.5);
                 if (games % 50 === 0) checkStock(0.07, 0.08);
 
-                // 天井到達
                 if (games >= currentCeiling) {
                     checkStock(0.40, 0.60);
-                    if (hiddenMode === 'Heaven') checkStock(0.5, 0.5); // 天国天井の追加ストック
+                    if (hiddenMode === 'Heaven') checkStock(0.5, 0.5);
                     pendingBonus = stockQueue.shift();
                 }
             }
 
-            checkStock(0.0001, 0.0004); // 毎G抽選
+            checkStock(0.0001, 0.0004);
 
             const role = determineRole();
             netTokens += role.net;
@@ -423,21 +432,17 @@
                 chainTokens += role.net;
             }
 
-            // ボーナス中の獲得枚数加算
             if (mode === 'bonus') bonusGainedTokens += role.net;
 
             if (role.pay > 0 && currentRole !== 'replay' && !isMuted) playSound('pay');
             else if (!isMuted) playSound('spin');
 
-            // ボーナス中のストック抽選
             if (mode === 'bonus') {
                 if (role.type === 'suika') checkStock(0.027, 0.003);
                 else if (role.type === 'cherry') checkStock(0.015, 0.035);
                 else if (role.type === 'blank') checkStock(0.0001, 0.0002);
             } else {
-                // 通常時・引き戻し中のレア役ストック抽選
                 if (role.type === 'suika' || role.type === 'cherry') {
-                    // ※fake_cherryは弾かれているため、本物のチェリーのみ抽選される
                     checkStock(0.02, 0.03);
                 }
             }
@@ -462,18 +467,18 @@
                     else if (br < (1/230)) { pendingBonus = 'REG'; isSelfDrawn = true; }
                 }
 
-                // 10連ランプ ＆ ストック0 ＆ 引き戻し中 に自力当選
                 if (isSelfDrawn && mode === 'pullback' && stockQueue.length === 0 && hasTriggered10Lamps) {
                     trigger75Loop();
                 }
 
+                // 【修正】引き戻し中のストック放出 (毎G 1/16抽選、32G目は強制放出)
                 if (mode === 'pullback' && !pendingBonus && stockQueue.length > 0) {
-                    const releaseRate = 1 / (33 - games);
-                    if (Math.random() < releaseRate) pendingBonus = stockQueue.shift();
+                    if (Math.random() < (1/16) || games === 32) {
+                        pendingBonus = stockQueue.shift();
+                    }
                 }
             }
 
-            // ボーナス終了判定
             if (mode === 'bonus') {
                 atGamesLeft--;
                 if (atGamesLeft <= 0) {
@@ -481,40 +486,29 @@
                     mode = 'pullback';
                     currentBonus = null;
                     setLamp(false);
-                    if (!isMuted) flashTopLamp(); // 上部ランプ示唆
+                    if (!isMuted) flashTopLamp();
                 }
-            } else if (mode === 'pullback' && games === 32) {
-                log(`32Gスルー 合計<span class="bonus-result">${chainTokens}枚獲得</span> 通常モードへ`);
-                mode = 'normal';
-                chainTokens = 0;
-                setHiddenMode(); // モード再抽選
-                checkStock(0.30, 0.20);
-                
-                miniLampCount = 0;
-                hasTriggered5Lamps = false;
-                hasTriggered10Lamps = false;
-            }
+            } 
+            // 32G抜けの処理はブロック先頭に移動済み
 
             if (!isMuted) {
                 reels.forEach(r => r.innerText = role.symbol);
                 updateUI();
             }
             
-            // 演出用
             currentRole = role.type; 
         }
         let currentRole = '';
 
-        // 【新機能】図柄を揃える演出
         function executeBonusReveal(isMuted) {
             games++;
             netTokens -= 3;
-            chainTokens -= 3; // 揃えるのにもコイン消費
+            chainTokens -= 3;
             let pB = pendingBonus;
             pendingBonus = null;
 
             if (mode === 'normal') {
-                chainTokens = -3; // 初当たり時、獲得枚数リセット
+                chainTokens = -3;
             }
 
             if (!isMuted) {
@@ -537,7 +531,7 @@
                         isRevealing = false;
                         triggerBonusFinalize(pB, isMuted);
                         document.getElementById('spin-btn').disabled = false;
-                    }, 600); // 揃った後少し間を置く
+                    }, 600);
                 }, 1200);
             } else {
                 triggerBonusFinalize(pB, isMuted);
