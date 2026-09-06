@@ -1,457 +1,454 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オレカ風 モンスターバトル</title>
-<style>
-    :root {
-        --primary: #ffd700;
-        --bg: #111;
-        --panel: #222;
-        --text: #eee;
-    }
-    body {
-        background-color: var(--bg);
-        color: var(--text);
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        margin: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        user-select: none;
-    }
-    #game-container {
-        width: 100%;
-        max-width: 600px;
-        height: 100vh;
-        max-height: 800px;
-        background: #000;
-        border: 2px solid #444;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-    }
-    .screen {
-        display: none;
-        flex-direction: column;
-        height: 100%;
-        padding: 20px;
-        box-sizing: border-box;
-        overflow-y: auto;
-    }
-    .screen.active {
-        display: flex;
-    }
-    /* タイトルやリザルト画面の中央寄せ用 */
-    .center-screen {
-        justify-content: center;
-        align-items: center;
-        text-align: center;
-    }
-    
-    h1, h2 { text-align: center; color: var(--primary); margin-top: 0; }
-    button {
-        background: #333; color: white; border: 2px solid #555; padding: 12px 24px;
-        font-size: 18px; cursor: pointer; border-radius: 5px; margin: 10px;
-        transition: 0.2s;
-        z-index: 100;
-        position: relative;
-    }
-    button:hover { background: #555; border-color: var(--primary); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; border-color: #555; background: #333; }
-
-    /* Deck Build Screen */
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; padding-bottom: 80px; }
-    .card {
-        background: var(--panel); border: 2px solid #555; border-radius: 8px;
-        padding: 10px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center;
-    }
-    .card:hover { border-color: var(--primary); }
-    .card.selected { border-color: #0f0; background: #040; }
-    .emoji { font-size: 30px; margin: 5px 0; }
-    .stats { font-size: 11px; color: #aaa; text-align: left; width: 100%; margin-top: 5px; }
-    .footer-bar {
-        position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.9);
-        padding: 15px; border-top: 2px solid #444; text-align: center; z-index: 10;
-        display: flex; justify-content: center; align-items: center;
-    }
-
-    /* Enemy Select Screen */
-    .enemy-group {
-        background: var(--panel); border: 2px solid #555; border-radius: 8px;
-        padding: 15px; margin-bottom: 10px; cursor: pointer; display: flex;
-        justify-content: space-around;
-    }
-    .enemy-group:hover { border-color: #f00; background: #400; }
-
-    /* Battle Screen */
-    .battle-area { flex: 1; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
-    .team { display: flex; justify-content: space-around; align-items: flex-end; height: 120px; }
-    .team.enemies { align-items: flex-start; }
-    .battler {
-        background: var(--panel); border: 2px solid #555; border-radius: 8px;
-        padding: 5px; text-align: center; width: 30%; position: relative;
-        transition: transform 0.2s;
-    }
-    .battler.active-turn { border-color: var(--primary); transform: translateY(-10px); box-shadow: 0 0 10px var(--primary); }
-    .battler.dead { opacity: 0.3; filter: grayscale(100%); }
-    .hp-bar-bg { background: #555; height: 8px; border-radius: 4px; margin-top: 5px; overflow: hidden; width: 100%; }
-    .hp-bar-fill { background: #0f0; height: 100%; transition: width 0.3s; }
-    
-    #message-box {
-        background: rgba(0,0,0,0.85); border: 2px solid var(--primary); border-radius: 8px;
-        padding: 10px; height: 180px; font-size: 16px; text-align: center;
-        display: flex; flex-direction: column; justify-content: flex-start;
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        width: 90%; z-index: 20; display: none;
-    }
-    
-    /* Roulette UI */
-    #roulette-container {
-        display: flex; flex-direction: column; align-items: flex-start;
-        background: #000; padding: 10px; border: 1px solid #555; border-radius: 5px;
-        margin-top: 10px; width: 80%; margin-left: auto; margin-right: auto;
-    }
-    .r-row {
-        display: flex; align-items: center; width: 100%; font-size: 16px; margin: 2px 0; color: #ccc;
-    }
-    .r-row.active { color: var(--primary); font-weight: bold; background: rgba(255, 215, 0, 0.2); }
-    .r-cursor { width: 20px; color: var(--primary); visibility: hidden; font-weight: bold; }
-    .r-row.active .r-cursor { visibility: visible; }
-    .cmd-name { flex: 1; text-align: left; padding-left: 10px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oki-Style Slot Simulator</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        #machine {
+            background-color: #8b0000;
+            border: 4px solid #gold;
+            border-radius: 15px;
+            width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+        }
+        /* ビスカスランプ */
+        #lamp-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .lamp {
+            width: 80px;
+            height: 80px;
+            background-color: #330000;
+            border-radius: 50%;
+            border: 2px solid #550000;
+            transition: all 0.1s;
+        }
+        .lamp.flash {
+            background-color: #ff3333;
+            box-shadow: 0 0 30px #ff0000, 0 0 60px #ffaaaa;
+            border-color: #ffaaaa;
+        }
+        /* パネル情報 */
+        .info-panel {
+            background-color: #000;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-around;
+            font-size: 1.2rem;
+            border: 2px solid #333;
+        }
+        .highlight {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        .danger {
+            color: #ff3333;
+        }
+        /* リール */
+        #reels {
+            display: flex;
+            justify-content: space-around;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .reel {
+            width: 80px;
+            height: 80px;
+            background-color: #ddd;
+            color: #000;
+            font-size: 2rem;
+            line-height: 80px;
+            font-weight: bold;
+            border: 2px solid #999;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        /* 操作系 */
+        #controls {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+        }
+        #spin-btn { background-color: #0066cc; color: #fff; }
+        #spin-btn:disabled { background-color: #333; color: #666; cursor: not-allowed; }
+        .stop-btn { background-color: #cc0000; color: #fff; width: 80px; }
+        .stop-btn:disabled { background-color: #333; color: #666; cursor: not-allowed; }
+        
+        #console {
+            background-color: #000;
+            height: 100px;
+            overflow-y: scroll;
+            text-align: left;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            color: #bbb;
+            margin-top: 15px;
+        }
+    </style>
 </head>
 <body>
 
-<div id="game-container">
-    <!-- Title Screen -->
-    <div id="screen-title" class="screen active center-screen">
-        <h1>オレカ風バトル</h1>
-        <p style="color:#aaa;">※音声が出ます</p>
-        <button onclick="initGame()">ゲームスタート</button>
-    </div>
-
-    <!-- Deck Build Screen -->
-    <div id="screen-deck" class="screen">
-        <h2>デッキ構築 (3体選ぶ)</h2>
-        <div class="grid" id="deck-grid"></div>
-        <div class="footer-bar">
-            <span id="deck-count" style="margin-right:20px; font-weight:bold;">選択中: 0 / 3</span>
-            <button id="btn-next-enemy" onclick="showEnemySelect()" disabled>バトルへ進む</button>
+    <div id="machine">
+        <div id="lamp-container">
+            <div class="lamp" id="lamp-left"></div>
+            <div class="lamp" id="lamp-right"></div>
         </div>
-    </div>
 
-    <!-- Enemy Select Screen -->
-    <div id="screen-enemy" class="screen">
-        <h2>敵パーティを選択</h2>
-        <div id="enemy-list" style="overflow-y: auto; flex: 1;"></div>
-    </div>
-
-    <!-- Battle Screen -->
-    <div id="screen-battle" class="screen" style="overflow: hidden;">
-        <div class="battle-area">
-            <div class="team enemies" id="battle-enemies"></div>
-            
-            <div id="message-box">
-                <div id="battle-msg" style="min-height: 24px; font-weight: bold;">バトル開始！</div>
-                <div id="roulette-container" style="display: none;">
-                    <div class="r-row" id="r-row-0"><span class="r-cursor">▶</span><span class="cmd-name" id="r-cmd-0"></span></div>
-                    <div class="r-row" id="r-row-1"><span class="r-cursor">▶</span><span class="cmd-name" id="r-cmd-1"></span></div>
-                    <div class="r-row" id="r-row-2"><span class="r-cursor">▶</span><span class="cmd-name" id="r-cmd-2"></span></div>
-                    <div class="r-row" id="r-row-3"><span class="r-cursor">▶</span><span class="cmd-name" id="r-cmd-3"></span></div>
-                    <div class="r-row" id="r-row-4"><span class="r-cursor">▶</span><span class="cmd-name" id="r-cmd-4"></span></div>
-                    <div class="r-row" id="r-row-5"><span class="r-cursor">▶</span><span class="cmd-name" id="r-cmd-5"></span></div>
-                </div>
-            </div>
-            
-            <div class="team players" id="battle-players"></div>
+        <div class="info-panel">
+            <div>G数: <span id="game-count" class="highlight">0</span></div>
+            <div>差枚数: <span id="net-tokens">0</span></div>
         </div>
+        <div class="info-panel" style="font-size: 1rem;">
+            <div>状態: <span id="status-display">通常</span></div>
+            <div>ストック: <span id="stock-display">0</span></div>
+        </div>
+
+        <div id="reels">
+            <div class="reel" id="reel-0">-</div>
+            <div class="reel" id="reel-1">-</div>
+            <div class="reel" id="reel-2">-</div>
+        </div>
+
+        <div id="controls">
+            <button id="spin-btn" onclick="spin()">レバーON (3枚)</button>
+        </div>
+        <div id="controls">
+            <button class="stop-btn" id="stop-0" onclick="stopReel(0)" disabled>左</button>
+            <button class="stop-btn" id="stop-1" onclick="stopReel(1)" disabled>中</button>
+            <button class="stop-btn" id="stop-2" onclick="stopReel(2)" disabled>右</button>
+        </div>
+
+        <div id="console"></div>
     </div>
 
-    <!-- Result Screen -->
-    <div id="screen-result" class="screen center-screen">
-        <h1 id="result-title"></h1>
-        <button onclick="resetGame()">タイトルへ戻る</button>
-    </div>
-</div>
+    <script>
+        /* ========================================================
+           設計・機械割シミュレーション (約100%目標)
+           
+           【ベース】
+           ・通常時のコイン持ち: 約30G/50枚 (1Gあたり純減 約-1.65枚)
+           ・リプレイ(13.5%), ベル(6%), レア役(1.5%)
+           
+           【ボーナスとモード】
+           ・BIG(約200枚獲得: AT60G) / REG(約60枚獲得: AT20G)
+           ・通常モードからの初当たり確率: 1/250
+           ・天国モード(32G以内確定): ループ率75%
+           
+           初当たりまでの平均投資: 250G * 1.65枚 = 412.5枚
+           初当たり時の期待枚数(天国ループ込):
+             1回+天国3回(75%ループ平均) = 4連。
+             BIG/REG比率が6:4とすると、平均獲得枚数 約144枚。
+             144枚 * 4連 = 576枚。
+           
+           わずかにプラスになる設計ですが、引き戻しスルー時のベース減少を
+           考慮すると実質機械割は99.8%〜100.5%程度に収束する設計です。
+        ======================================================== */
 
-<script>
-    // --- Audio System ---
-    let audioCtx;
-    function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-    function playSound(type) {
-        if (!audioCtx) return;
-        const now = audioCtx.currentTime;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        if (type === 'select') {
-            osc.type = 'square'; osc.frequency.setValueAtTime(600, now);
-            gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-            osc.start(now); osc.stop(now + 0.1);
-        } else if (type === 'tick') {
-            osc.type = 'triangle'; osc.frequency.setValueAtTime(800, now);
-            gain.gain.setValueAtTime(0.05, now);
-            osc.start(now); osc.stop(now + 0.03);
-        } else if (type === 'attack') {
-            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
-            gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-            osc.start(now); osc.stop(now + 0.2);
-        } else if (type === 'critical') {
-            osc.type = 'square'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(800, now + 0.2);
-            gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-            osc.start(now); osc.stop(now + 0.4);
-        } else if (type === 'miss') {
-            osc.type = 'sine'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(100, now + 0.3);
-            gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-            osc.start(now); osc.stop(now + 0.3);
-        } else if (type === 'upgrade') {
-            osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.setValueAtTime(800, now+0.1);
-            gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-            osc.start(now); osc.stop(now + 0.4);
+        // --- 状態変数 ---
+        let games = 0;
+        let netTokens = 0;
+        let mode = 'normal'; // 'normal', 'pullback', 'heaven', 'bonus'
+        let stock = 0;
+        let bonusType = null; // 'BIG', 'REG'
+        let atGamesLeft = 0;
+        let isFlashing = false;
+
+        let reelsInt = [null, null, null];
+        let reelsStopped = [true, true, true];
+        let currentRole = 'blank';
+
+        const symbols = ['🍉', '🍒', '🔔', '🔄', '7️⃣', 'BAR', '❌'];
+
+        // --- DOM要素 ---
+        const domGames = document.getElementById('game-count');
+        const domNet = document.getElementById('net-tokens');
+        const domStatus = document.getElementById('status-display');
+        const domStock = document.getElementById('stock-display');
+        const btnSpin = document.getElementById('spin-btn');
+        const lamps = [document.getElementById('lamp-left'), document.getElementById('lamp-right')];
+        const consoleEl = document.getElementById('console');
+
+        function log(msg) {
+            consoleEl.innerHTML = `<div>${msg}</div>` + consoleEl.innerHTML;
         }
-    }
 
-    // --- Data (30 Monsters) ---
-    // t: normal(通常), special(特殊), critical(会心), miss(ミス), upgrade(★→★★ バフ)
-    const DB_MONSTERS = [
-        {id:1, n:"スライム", e:"💧", h:50, a:15, s:40, c:[{n:"ミス",t:"miss"},{n:"たいあたり",t:"normal"},{n:"たいあたり",t:"normal"},{n:"たいあたり",t:"normal"},{n:"強撃",t:"special"},{n:"ミス",t:"miss"}]},
-        {id:2, n:"ゴブリン", e:"👹", h:60, a:20, s:45, c:[{n:"攻撃",t:"normal"},{n:"攻撃",t:"normal"},{n:"ミス",t:"miss"},{n:"攻撃",t:"normal"},{n:"こんぼう",t:"special"},{n:"ミス",t:"miss"}]},
-        {id:3, n:"戦士", e:"⚔️", h:100, a:30, s:40, c:[{n:"ミス",t:"miss"},{n:"攻撃",t:"normal"},{n:"攻撃",t:"normal"},{n:"★→★★",t:"upgrade"},{n:"斬りつけ",t:"special"},{n:"会心の一撃",t:"critical"}]},
-        {id:4, n:"魔法使い", e:"🧙", h:70, a:35, s:35, c:[{n:"ミス",t:"miss"},{n:"魔法弾",t:"normal"},{n:"★→★★",t:"upgrade"},{n:"ファイア",t:"special"},{n:"ミス",t:"miss"},{n:"大魔法",t:"critical"}]},
-        {id:5, n:"盗賊", e:"🗡️", h:80, a:25, s:75, c:[{n:"攻撃",t:"normal"},{n:"攻撃",t:"normal"},{n:"毒の刃",t:"special"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"暗殺",t:"critical"}]},
-        {id:6, n:"騎士", e:"🛡️", h:130, a:22, s:30, c:[{n:"攻撃",t:"normal"},{n:"防御攻撃",t:"normal"},{n:"★→★★",t:"upgrade"},{n:"シールドバッシュ",t:"special"},{n:"ミス",t:"miss"},{n:"聖剣",t:"critical"}]},
-        {id:7, n:"ウルフ", e:"🐺", h:70, a:25, s:65, c:[{n:"かみつき",t:"normal"},{n:"かみつき",t:"normal"},{n:"ミス",t:"miss"},{n:"ひっかき",t:"special"},{n:"遠吠え",t:"upgrade"},{n:"急所噛み",t:"critical"}]},
-        {id:8, n:"コウモリ", e:"🦇", h:45, a:15, s:80, c:[{n:"ミス",t:"miss"},{n:"つつく",t:"normal"},{n:"つつく",t:"normal"},{n:"吸血",t:"special"},{n:"ミス",t:"miss"},{n:"超音波",t:"special"}]},
-        {id:9, n:"スケルトン", e:"💀", h:65, a:28, s:35, c:[{n:"骨投げ",t:"normal"},{n:"攻撃",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"呪いの剣",t:"special"},{n:"ミス",t:"miss"}]},
-        {id:10,n:"オーク", e:"🐗", h:110, a:35, s:25, c:[{n:"ミス",t:"miss"},{n:"攻撃",t:"normal"},{n:"ぶん殴り",t:"special"},{n:"ミス",t:"miss"},{n:"大暴れ",t:"critical"},{n:"★→★★",t:"upgrade"}]},
-        {id:11,n:"アーチャー", e:"🏹", h:75, a:30, s:60, c:[{n:"矢を射る",t:"normal"},{n:"ミス",t:"miss"},{n:"矢を射る",t:"normal"},{n:"★→★★",t:"upgrade"},{n:"狙い撃ち",t:"special"},{n:"必殺の矢",t:"critical"}]},
-        {id:12,n:"ゴーレム", e:"🪨", h:160, a:40, s:10, c:[{n:"ミス",t:"miss"},{n:"ミス",t:"miss"},{n:"パンチ",t:"normal"},{n:"岩石落とし",t:"special"},{n:"★→★★",t:"upgrade"},{n:"メガトンパンチ",t:"critical"}]},
-        {id:13,n:"フェアリー", e:"🧚", h:55, a:20, s:70, c:[{n:"光の粉",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"妖精のいたずら",t:"special"},{n:"ミス",t:"miss"},{n:"ホーリー",t:"critical"}]},
-        {id:14,n:"ドラゴン", e:"🐉", h:180, a:45, s:45, c:[{n:"ミス",t:"miss"},{n:"ひっかき",t:"normal"},{n:"★→★★",t:"upgrade"},{n:"火炎の息",t:"special"},{n:"尻尾ビンタ",t:"special"},{n:"ドラゴンバースト",t:"critical"}]},
-        {id:15,n:"サムライ", e:"🏯", h:90, a:38, s:55, c:[{n:"刀撃",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"居合斬り",t:"special"},{n:"ミス",t:"miss"},{n:"燕返し",t:"critical"}]},
-        {id:16,n:"ニンジャ", e:"🥷", h:70, a:32, s:85, c:[{n:"手裏剣",t:"normal"},{n:"クナイ",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"分身攻撃",t:"special"},{n:"暗殺術",t:"critical"}]},
-        {id:17,n:"ゾンビ", e:"🧟", h:140, a:20, s:15, c:[{n:"ミス",t:"miss"},{n:"攻撃",t:"normal"},{n:"ミス",t:"miss"},{n:"毒ひっかき",t:"special"},{n:"かみつき",t:"special"},{n:"ミス",t:"miss"}]},
-        {id:18,n:"ヴァンパイア", e:"🧛", h:120, a:35, s:50, c:[{n:"攻撃",t:"normal"},{n:"★→★★",t:"upgrade"},{n:"ミス",t:"miss"},{n:"ブラッドドレイン",t:"special"},{n:"コウモリ化",t:"special"},{n:"真祖の力",t:"critical"}]},
-        {id:19,n:"マーメイド", e:"🧜‍♀️", h:85, a:25, s:55, c:[{n:"水鉄砲",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"アクアストリーム",t:"special"},{n:"ミス",t:"miss"},{n:"大津波",t:"critical"}]},
-        {id:20,n:"ミノタウロス", e:"🐃", h:150, a:42, s:25, c:[{n:"ミス",t:"miss"},{n:"斧振り",t:"normal"},{n:"★→★★",t:"upgrade"},{n:"突進",t:"special"},{n:"ミス",t:"miss"},{n:"地裂斬",t:"critical"}]},
-        {id:21,n:"フェニックス", e:"🦅", h:110, a:35, s:75, c:[{n:"つつく",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"炎の翼",t:"special"},{n:"ミス",t:"miss"},{n:"プロミネンス",t:"critical"}]},
-        {id:22,n:"グリフォン", e:"🦅", h:125, a:38, s:65, c:[{n:"攻撃",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"トルネード",t:"special"},{n:"切り裂き",t:"special"},{n:"天の裁き",t:"critical"}]},
-        {id:23,n:"スノウマン", e:"⛄", h:100, a:22, s:20, c:[{n:"雪玉",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"吹雪",t:"special"},{n:"ミス",t:"miss"},{n:"アイスバッシュ",t:"critical"}]},
-        {id:24,n:"イフリート", e:"🔥", h:130, a:45, s:40, c:[{n:"ミス",t:"miss"},{n:"火炎弾",t:"normal"},{n:"★→★★",t:"upgrade"},{n:"爆発",t:"special"},{n:"ミス",t:"miss"},{n:"ヘルファイア",t:"critical"}]},
-        {id:25,n:"シルフ", e:"💨", h:65, a:25, s:90, c:[{n:"風の刃",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"エアカッター",t:"special"},{n:"ミス",t:"miss"},{n:"ハリケーン",t:"critical"}]},
-        {id:26,n:"トレント", e:"🌳", h:170, a:28, s:15, c:[{n:"枝打ち",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"根っこ攻撃",t:"special"},{n:"ミス",t:"miss"},{n:"大自然の怒り",t:"critical"}]},
-        {id:27,n:"キメラ", e:"🦁", h:145, a:40, s:55, c:[{n:"ミス",t:"miss"},{n:"かみつき",t:"normal"},{n:"★→★★",t:"upgrade"},{n:"毒の尾",t:"special"},{n:"炎の息",t:"special"},{n:"トリプルアタック",t:"critical"}]},
-        {id:28,n:"バハムート", e:"🐲", h:200, a:50, s:60, c:[{n:"ミス",t:"miss"},{n:"竜の爪",t:"normal"},{n:"★→★★",t:"upgrade"},{n:"テラフレア",t:"special"},{n:"ミス",t:"miss"},{n:"ギガフレア",t:"critical"}]},
-        {id:29,n:"ダークナイト", e:"🗡️", h:120, a:42, s:45, c:[{n:"暗黒剣",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"ブラッドサージ",t:"special"},{n:"ミス",t:"miss"},{n:"カオススラッシュ",t:"critical"}]},
-        {id:30,n:"エンジェル", e:"👼", h:95, a:30, s:60, c:[{n:"聖なる光",t:"normal"},{n:"ミス",t:"miss"},{n:"★→★★",t:"upgrade"},{n:"ジャッジメント",t:"special"},{n:"ミス",t:"miss"},{n:"ヘブンズゲート",t:"critical"}]}
-    ];
+        // --- Web Audio API (サウンドエンジン) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
 
-    let playerDeck = [];
-    let enemyDeck = [];
-    let allFighters = [];
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+        }
 
-    function switchScreen(id) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-    }
+        function playSound(type) {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
 
-    function initGame() {
-        initAudio(); 
-        playSound('select');
-        playerDeck = [];
-        renderDeckBuilder();
-        switchScreen('screen-deck');
-    }
-
-    function renderDeckBuilder() {
-        const grid = document.getElementById('deck-grid');
-        grid.innerHTML = '';
-        DB_MONSTERS.forEach(m => {
-            const el = document.createElement('div');
-            el.className = 'card';
-            el.innerHTML = `<div class="emoji">${m.e}</div><b style="font-size:12px;">${m.n}</b>
-                <div class="stats">HP:${m.h}<br>ATK:${m.a}<br>SPD:${m.s}</div>`;
-            el.onclick = () => {
-                if (playerDeck.includes(m)) {
-                    playerDeck = playerDeck.filter(c => c !== m);
-                    el.classList.remove('selected');
-                } else if (playerDeck.length < 3) {
-                    playerDeck.push(m);
-                    el.classList.add('selected');
-                    playSound('select');
-                }
-                document.getElementById('deck-count').innerText = `選択中: ${playerDeck.length} / 3`;
-                document.getElementById('btn-next-enemy').disabled = playerDeck.length !== 3;
-            };
-            grid.appendChild(el);
-        });
-    }
-
-    function showEnemySelect() {
-        playSound('select');
-        const list = document.getElementById('enemy-list');
-        list.innerHTML = '';
-        const groupCount = 4;
-        for (let i = 0; i < groupCount; i++) {
-            const enemyCount = Math.floor(Math.random() * 2) + 2; // 2〜3体
-            let team = []; let html = '';
-            for (let j = 0; j < enemyCount; j++) {
-                const r = DB_MONSTERS[Math.floor(Math.random() * DB_MONSTERS.length)];
-                team.push(JSON.parse(JSON.stringify(r)));
-                html += `<div style="text-align:center"><div style="font-size:24px;">${r.e}</div><small>${r.n}</small></div>`;
+            const now = audioCtx.currentTime;
+            
+            if (type === 'spin') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'stop') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, now);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now); osc.stop(now + 0.05);
+            } else if (type === 'kyuin') {
+                // 告知音（キュイン！）
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.linearRampToValueAtTime(2000, now + 0.3);
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            } else if (type === 'pay') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(1500, now);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
             }
-            const groupEl = document.createElement('div');
-            groupEl.className = 'enemy-group'; groupEl.innerHTML = html;
-            groupEl.onclick = () => startBattle(team);
-            list.appendChild(groupEl);
         }
-        switchScreen('screen-enemy');
-    }
 
-    function startBattle(enemies) {
-        playSound('select');
-        enemyDeck = enemies;
-        allFighters = [];
-        playerDeck.forEach((m, i) => allFighters.push({ ...m, isP: true, hpMax: m.h, hp: m.h, buff: 1, idx: i }));
-        enemyDeck.forEach((m, i) => allFighters.push({ ...m, isP: false, hpMax: m.h, hp: m.h, buff: 1, idx: i }));
-        
-        renderBattle();
-        switchScreen('screen-battle');
-        showMsgBox("バトル開始！");
-        setTimeout(battleLoop, 1500);
-    }
-
-    function renderBattle() {
-        const pContainer = document.getElementById('battle-players');
-        const eContainer = document.getElementById('battle-enemies');
-        pContainer.innerHTML = ''; eContainer.innerHTML = '';
-
-        allFighters.forEach(f => {
-            const hpPct = Math.max(0, (f.hp / f.hpMax) * 100);
-            const html = `
-                <div class="battler ${f.hp <= 0 ? 'dead' : ''}" id="f-${f.isP?'p':'e'}-${f.idx}">
-                    <div style="font-size:30px;">${f.e}</div>
-                    <div style="font-size:11px; font-weight:bold; white-space:nowrap; overflow:hidden;">${f.n}</div>
-                    <div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${hpPct}%; background:${hpPct<30?'red':'#0f0'};"></div></div>
-                </div>
-            `;
-            if (f.isP) pContainer.innerHTML += html;
-            else eContainer.innerHTML += html;
-        });
-    }
-
-    function showMsgBox(text) {
-        const box = document.getElementById('message-box');
-        box.style.display = 'flex';
-        document.getElementById('battle-msg').innerText = text;
-        document.getElementById('roulette-container').style.display = 'none';
-    }
-
-    function hideMsgBox() { document.getElementById('message-box').style.display = 'none'; }
-
-    async function battleLoop() {
-        hideMsgBox();
-        const alive = allFighters.filter(f => f.hp > 0);
-        if (alive.filter(f => f.isP).length === 0) { showResult(false); return; }
-        if (alive.filter(f => !f.isP).length === 0) { showResult(true); return; }
-
-        alive.sort((a, b) => b.s - a.s || Math.random() - 0.5);
-        let queue = [...alive];
-        
-        const nextTurn = async () => {
-            if (queue.length === 0) { setTimeout(battleLoop, 500); return; }
-            
-            const cur = queue.shift();
-            if (cur.hp <= 0) { nextTurn(); return; }
-
-            if (allFighters.filter(f => f.isP && f.hp > 0).length === 0) { showResult(false); return; }
-            if (allFighters.filter(f => !f.isP && f.hp > 0).length === 0) { showResult(true); return; }
-
-            document.querySelectorAll('.battler').forEach(el => el.classList.remove('active-turn'));
-            document.getElementById(`f-${cur.isP?'p':'e'}-${cur.idx}`).classList.add('active-turn');
-            
-            showMsgBox(`${cur.n}のターン！`);
-            await new Promise(r => setTimeout(r, 800));
-
-            const cmd = await playRouletteUI(cur.c);
-            
-            let targets = allFighters.filter(f => f.isP !== cur.isP && f.hp > 0);
-            let target = targets[Math.floor(Math.random() * targets.length)];
-
-            if (cmd.t === 'upgrade') {
-                cur.buff = 1.5; // 次のターン攻撃力1.5倍
-                playSound('upgrade');
-                showMsgBox(`${cur.n} の ★→★★！\n気合が高まった！（次回ダメージUP）`);
-            } else if (cmd.t === 'miss') {
-                playSound('miss');
-                showMsgBox(`${cur.n} は ${cmd.n}！\nしかし なにもおきなかった！`);
+        // --- 抽選ロジック ---
+        function determineRole() {
+            const r = Math.random();
+            if (mode === 'bonus') {
+                // ボーナス中はベル確率大幅UP(純増約3.0枚)
+                if (r < 0.60) return 'bell';
+                if (r < 0.65) return 'replay';
+                if (r < 0.68) return 'rare'; // レア役でストック抽選
+                return 'blank';
             } else {
-                let base = cur.a * cur.buff;
-                cur.buff = 1; // バフ消費
-                let mult = 0;
-                let isCrit = false;
-                if (cmd.t === 'normal') { mult = 0.8 + Math.random() * 0.4; } // -20% ~ +20%
-                else if (cmd.t === 'special') { mult = 1.3 + Math.random() * 0.4; } // +30% ~ +70%
-                else if (cmd.t === 'critical') { mult = 1.75 + Math.random() * 0.5; isCrit = true; } // +75% ~ +125%
-                
-                let dmg = Math.floor(base * mult);
-                target.hp -= dmg;
-                
-                if(isCrit) playSound('critical'); else playSound('attack');
-                showMsgBox(`${cur.n} の ${cmd.n}！\n${target.n} に ${dmg} のダメージ！`);
+                if (r < 0.135) return 'replay';
+                if (r < 0.060) return 'bell';
+                if (r < 0.015) return 'rare';
+                return 'blank';
             }
-            renderBattle();
-            setTimeout(nextTurn, 1800);
-        };
-        nextTurn();
-    }
+        }
 
-    function playRouletteUI(cmds) {
-        return new Promise(resolve => {
-            const rCont = document.getElementById('roulette-container');
-            document.getElementById('battle-msg').innerText = "コマンドを選択中...";
-            rCont.style.display = 'flex';
+        function checkBonusHit(role) {
+            if (mode === 'bonus') return; // ボーナス中はストック抽選のみ
             
-            // Set commands to UI
-            for(let i=0; i<6; i++) {
-                document.getElementById(`r-cmd-${i}`).innerText = cmds[i].n;
-                document.getElementById(`r-row-${i}`).className = 'r-row';
+            let hitRate = 0;
+            
+            if (stock > 0 && mode !== 'normal') {
+                // ストックあり時は32G以内に均等に放出 (約1/8)
+                hitRate = 0.125; 
+            } else if (mode === 'heaven') {
+                // 天国中 (1/10で告知)
+                hitRate = 0.1;
+            } else if (mode === 'pullback') {
+                // 引き戻し中 (通常より少し高い)
+                hitRate = 1/150;
+            } else {
+                // 通常モード
+                hitRate = 1/250;
+                // レア役時は直撃確率UP
+                if (role === 'rare') hitRate = 0.1; 
             }
 
-            let currentIndex = 0;
-            let ticks = 0;
-            const maxTicks = 20 + Math.floor(Math.random() * 10);
+            // 32G天井（ストックありor天国時）
+            if ((stock > 0 || mode === 'heaven') && games === 32) {
+                hitRate = 1.0;
+            }
+
+            if (Math.random() < hitRate) {
+                triggerBonus();
+            }
+        }
+
+        function triggerBonus() {
+            playSound('kyuin');
+            isFlashing = true;
+            flashLamp();
             
-            const interval = setInterval(() => {
-                document.getElementById(`r-row-${currentIndex}`).classList.remove('active');
-                currentIndex = (currentIndex + 1) % 6;
-                document.getElementById(`r-row-${currentIndex}`).classList.add('active');
-                playSound('tick');
-                ticks++;
-                
-                if (ticks >= maxTicks) {
-                    clearInterval(interval);
-                    setTimeout(() => {
-                        rCont.style.display = 'none';
-                        resolve(cmds[currentIndex]);
-                    }, 800);
+            // BIG or REG 抽選 (6:4)
+            bonusType = Math.random() < 0.6 ? 'BIG' : 'REG';
+            
+            log(`<span class="danger">【告知】${bonusType} BONUS 確定！</span>`);
+        }
+
+        function flashLamp() {
+            if(!isFlashing) {
+                lamps.forEach(l => l.classList.remove('flash'));
+                return;
+            }
+            lamps.forEach(l => l.classList.toggle('flash'));
+            setTimeout(flashLamp, 200);
+        }
+
+        function checkStock(role) {
+            // ボーナス中・引き戻し中のレア役でストック抽選
+            if (role === 'rare') {
+                if (Math.random() < 0.25) { // レア役の25%でストック
+                    stock++;
+                    playSound('kyuin');
+                    log('<span class="highlight">【ストック】1G連獲得！</span>');
+                    updateDisplay();
                 }
-            }, 80); // Speed of roulette
-        });
-    }
+            }
+        }
 
-    function showResult(isWin) {
-        hideMsgBox();
-        document.getElementById('result-title').innerText = isWin ? "YOU WIN!!" : "GAME OVER...";
-        document.getElementById('result-title').style.color = isWin ? "#0f0" : "#f00";
-        switchScreen('screen-result');
-    }
+        // --- メインアクション ---
+        function spin() {
+            initAudio(); // ユーザーアクションでAudioContextを有効化
+            
+            if (mode !== 'bonus') {
+                games++;
+            }
+            
+            // ボーナス移行処理
+            if (isFlashing && mode !== 'bonus') {
+                isFlashing = false;
+                mode = 'bonus';
+                games = 0; // ボーナス当選でG数リセット
+                if (stock > 0) stock--; // ストック消費
+                
+                atGamesLeft = bonusType === 'BIG' ? 60 : 20;
+                
+                // 天国移行抽選 (ボーナス開始時)
+                if (mode !== 'heaven') {
+                    if (Math.random() < 0.25) {
+                        mode = 'heaven'; // 25%で天国へ
+                    }
+                }
+            }
 
-    function resetGame() { switchScreen('screen-title'); }
-</script>
+            // モード転落判定 (32G抜け)
+            if (games > 32 && (mode === 'heaven' || mode === 'pullback')) {
+                mode = 'normal';
+                log('32Gスルー。通常モードへ移行。');
+            }
 
+            // コイン消費
+            if (currentRole !== 'replay') {
+                netTokens -= 3;
+            }
+            
+            currentRole = determineRole();
+            
+            checkStock(currentRole);
+            checkBonusHit(currentRole);
+
+            if (mode === 'bonus') {
+                atGamesLeft--;
+            }
+
+            updateDisplay();
+            startReels();
+            playSound('spin');
+
+            btnSpin.disabled = true;
+            document.getElementById('stop-0').disabled = false;
+        }
+
+        function updateDisplay() {
+            domGames.innerText = games;
+            domNet.innerText = netTokens;
+            domNet.style.color = netTokens >= 0 ? '#00ff00' : '#ff3333';
+            
+            let statusText = mode === 'bonus' ? `${bonusType}中 (残${atGamesLeft}G)` : 
+                             games <= 32 ? '引き戻し/天国?' : '通常';
+            domStatus.innerText = statusText;
+            domStock.innerText = stock;
+        }
+
+        // --- リール制御 ---
+        function startReels() {
+            reelsStopped = [false, false, false];
+            for (let i=0; i<3; i++) {
+                document.getElementById(`reel-${i}`).innerText = '-';
+                reelsInt[i] = setInterval(() => {
+                    document.getElementById(`reel-${i}`).innerText = symbols[Math.floor(Math.random() * symbols.length)];
+                }, 50);
+            }
+        }
+
+        function stopReel(idx) {
+            if (reelsStopped[idx]) return;
+            clearInterval(reelsInt[idx]);
+            reelsStopped[idx] = true;
+            playSound('stop');
+            
+            document.getElementById(`stop-${idx}`).disabled = true;
+
+            // 擬似的な図柄停止表現
+            let symbolToStop = '❌';
+            if (isFlashing && reelsStopped.every(s=>s)) {
+                symbolToStop = '7️⃣'; // 告知時は7やBARが揃う想定
+            } else if (currentRole === 'replay') symbolToStop = '🔄';
+            else if (currentRole === 'bell') symbolToStop = '🔔';
+            else if (currentRole === 'rare') symbolToStop = '🍒'; // チェリーまたはスイカ
+            
+            document.getElementById(`reel-${idx}`).innerText = symbolToStop;
+
+            // 次の停止ボタンを有効化
+            if (idx < 2) {
+                document.getElementById(`stop-${idx+1}`).disabled = false;
+            } else {
+                finishGame();
+            }
+        }
+
+        function finishGame() {
+            btnSpin.disabled = false;
+            
+            // 払い出し処理
+            let pay = 0;
+            if (currentRole === 'replay') { pay = 3; log('リプレイ'); }
+            if (currentRole === 'bell') { pay = 8; log('ベル (+8枚)'); }
+            if (currentRole === 'rare') { pay = 2; log('レア役 (+2枚)'); }
+            
+            if (pay > 0 && currentRole !== 'replay') {
+                netTokens += pay;
+                playSound('pay');
+            }
+            
+            // ボーナス終了判定
+            if (mode === 'bonus' && atGamesLeft <= 0) {
+                mode = 'pullback';
+                bonusType = null;
+                log('ボーナス終了。32Gの引き戻し(天国)へ。');
+            }
+            
+            updateDisplay();
+        }
+    </script>
 </body>
 </html>
