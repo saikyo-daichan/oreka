@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oki-Style Slot Simulator V8 - Ura Rireki</title>
+    <title>Oki-Style Slot Simulator V10 - Perfect Edition</title>
     <style>
         body {
             background-color: #111;
@@ -13,7 +13,7 @@
             margin: 0;
             padding: 10px;
             box-sizing: border-box;
-            position: relative; /* 裏履歴用 */
+            position: relative;
         }
         #machine {
             background-color: #8b0000;
@@ -256,6 +256,10 @@
             color: #fff;
             width: 100%;
             padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -306,7 +310,7 @@
     <div id="ura-btn" onclick="toggleUra()">📗</div>
 
     <div id="ura-modal">
-        <h3>裏履歴 (ストック獲得ログ)</h3>
+        <h3>裏履歴 (ストック＆直撃ログ)</h3>
         <div id="ura-content">ここに履歴が表示されます</div>
         <button class="close-btn" onclick="toggleUra()">閉じる</button>
     </div>
@@ -414,12 +418,12 @@
         /* ========================================================
            裏履歴ロジック
         ======================================================== */
-        function addUraLog(type, reason) {
+        function addUraLog(type, reason, isDirectHit = false) {
             const typeStr = type === 'BIG' ? '<span class="ura-big">BIG</span>' : '<span class="ura-reg">REG</span>';
-            const logMsg = `<div>${points}PT/${games}G ${reason}から${typeStr}ストック獲得</div>`;
+            const actionStr = isDirectHit ? '直撃当選' : 'ストック獲得';
+            const logMsg = `<div>${points}PT/${games}G ${reason}から${typeStr}${actionStr}</div>`;
             uraLogs.unshift(logMsg);
             
-            // 最大50件まで保存
             if (uraLogs.length > 50) uraLogs.pop();
             uraContent.innerHTML = uraLogs.join('');
         }
@@ -430,7 +434,7 @@
             } else {
                 uraModal.style.display = 'block';
                 if (uraLogs.length === 0) {
-                    uraContent.innerHTML = '<div>まだストック獲得履歴はありません。</div>';
+                    uraContent.innerHTML = '<div>まだ履歴はありません。</div>';
                 }
             }
         }
@@ -461,7 +465,6 @@
                     else nextMode = 'Heaven';
                 }
             }
-            
             hiddenMode = nextMode;
             currentCeiling = (hiddenMode === 'B') ? 800 : (hiddenMode === 'Heaven' ? 200 : 1200);
         }
@@ -539,28 +542,28 @@
         }
 
         /* ========================================================
-           抽選ロジック (reasonを追加)
+           抽選ロジック
         ======================================================== */
         function checkStock(bigProb, regProb, reason) {
             let r = Math.random();
             if (r < bigProb) {
                 stockQueue.push('BIG');
-                addUraLog('BIG', reason);
+                addUraLog('BIG', reason, false);
             } else if (r < (bigProb + regProb)) {
                 stockQueue.push('REG');
-                addUraLog('REG', reason);
+                addUraLog('REG', reason, false);
             }
         }
 
         function trigger75Loop(reason) {
-            if (Math.random() < 0.5) { stockQueue.push('BIG'); addUraLog('BIG', reason + "保証"); }
-            else { stockQueue.push('REG'); addUraLog('REG', reason + "保証"); }
+            if (Math.random() < 0.5) { stockQueue.push('BIG'); addUraLog('BIG', reason + "保証", false); }
+            else { stockQueue.push('REG'); addUraLog('REG', reason + "保証", false); }
             
             let loopCount = 1;
             while (true) {
                 let loopR = Math.random();
-                if (loopR < 0.30) { stockQueue.push('BIG'); addUraLog('BIG', `${reason}(${loopCount}連目)`); loopCount++; }
-                else if (loopR < 0.75) { stockQueue.push('REG'); addUraLog('REG', `${reason}(${loopCount}連目)`); loopCount++; }
+                if (loopR < 0.30) { stockQueue.push('BIG'); addUraLog('BIG', `${reason}(${loopCount}連目)`, false); loopCount++; }
+                else if (loopR < 0.75) { stockQueue.push('REG'); addUraLog('REG', `${reason}(${loopCount}連目)`, false); loopCount++; }
                 else break;
             }
         }
@@ -568,8 +571,8 @@
         function trigger25Loop(reason) {
             let loopCount = 1;
             while (Math.random() < 0.25) {
-                if (Math.random() < 0.5) { stockQueue.push('BIG'); addUraLog('BIG', `${reason}(${loopCount}連目)`); }
-                else { stockQueue.push('REG'); addUraLog('REG', `${reason}(${loopCount}連目)`); }
+                if (Math.random() < 0.5) { stockQueue.push('BIG'); addUraLog('BIG', `${reason}(${loopCount}連目)`, false); }
+                else { stockQueue.push('REG'); addUraLog('REG', `${reason}(${loopCount}連目)`, false); }
                 loopCount++;
             }
         }
@@ -625,12 +628,13 @@
             if (mode !== 'bonus') {
                 games++;
                 
+                // 引き戻しモード終了時（33G目）に通常転落
                 if (mode === 'pullback' && games === 33) {
                     log(`32Gスルー 合計<span class="bonus-result">${chainTokens}枚獲得</span> 通常モードへ`);
                     mode = 'normal';
                     chainTokens = 0;
                     setHiddenMode(false);
-                    checkStock(0.30, 0.20, "引き戻し終了時");
+                    checkStock(0.30, 0.20, "引き戻し終了時"); // 落ちた時にストックを獲得（裏に回る）
                     miniLampColors = [];
                     hasTriggered10Lamps = false;
                     updateUI(); 
@@ -644,25 +648,25 @@
                 if (isPtSpecial) ptGain *= 2;
                 points += ptGain;
 
+                // 100PT毎のストック抽選（獲得したストックは常に裏へ回る）
                 let oldHundreds = Math.floor(oldPoints / 100);
                 let newHundreds = Math.floor(points / 100);
                 if (newHundreds > oldHundreds) {
                     let crosses = newHundreds - oldHundreds;
                     for (let i = 0; i < crosses; i++) {
                         let currentHundred = (oldHundreds + i + 1) * 100;
-                        
                         checkStock(0.07, 0.08, `${currentHundred}PT到達`);
-
                         if (hiddenMode === 'Heaven' && currentHundred === 100) {
                             checkStock(0.25, 0.25, "天国100PT到達");
                         }
                     }
                 }
 
+                // 天井到達時の処理（天井は即放出）
                 if (points >= currentCeiling && oldPoints < currentCeiling) {
                     if (hiddenMode === 'Heaven') {
-                        if (Math.random() < 0.5) { stockQueue.push('BIG'); addUraLog('BIG', "天国天井(200PT)到達"); }
-                        else { stockQueue.push('REG'); addUraLog('REG', "天国天井(200PT)到達"); }
+                        if (Math.random() < 0.5) { stockQueue.push('BIG'); addUraLog('BIG', "天国天井(200PT)到達", false); }
+                        else { stockQueue.push('REG'); addUraLog('REG', "天国天井(200PT)到達", false); }
                         trigger25Loop("天国天井25%ループ");
                     } else {
                         checkStock(0.40, 0.60, "通常天井到達");
@@ -671,6 +675,7 @@
                 }
             }
 
+            // 毎G抽選（ストックは裏へ回る）
             checkStock(0.0001, 0.0004, "毎G抽選"); 
 
             netTokens += role.net;
@@ -685,42 +690,46 @@
                 else if (role.type === 'cherry') checkStock(0.015, 0.035, "ボーナス中のチェリー");
                 else if (role.type === 'blank') checkStock(0.0001, 0.0002, "ボーナス中のハズレ");
             } else {
-                // 本物レア役でのストック
                 if (role.type === 'suika' || role.type === 'cherry') {
                     checkStock(0.02, 0.03, `${role.name}成立`);
                 }
             }
 
+            // ボーナス直撃抽選 (通常・引き戻し中問わず即放出)
+            // ★今回の修正のキモ：直撃した事実を全て裏履歴に記録する！
             if (mode !== 'bonus' && !pendingBonus && points < currentCeiling) {
                 let isSelfDrawn = false; 
 
                 if (role.type === 'suika') {
                     const rr = Math.random();
-                    if (rr < 0.027) { pendingBonus = 'BIG'; isSelfDrawn = true; }
-                    else if (rr < 0.030) { pendingBonus = 'REG'; isSelfDrawn = true; }
+                    if (rr < 0.027) { pendingBonus = 'BIG'; isSelfDrawn = true; addUraLog('BIG', "スイカ成立 (即放出)", true); }
+                    else if (rr < 0.030) { pendingBonus = 'REG'; isSelfDrawn = true; addUraLog('REG', "スイカ成立 (即放出)", true); }
                 } else if (role.type === 'cherry') {
                     const rr = Math.random();
-                    if (rr < 0.015) { pendingBonus = 'BIG'; isSelfDrawn = true; }
-                    else if (rr < 0.050) { pendingBonus = 'REG'; isSelfDrawn = true; }
+                    if (rr < 0.015) { pendingBonus = 'BIG'; isSelfDrawn = true; addUraLog('BIG', "チェリー成立 (即放出)", true); }
+                    else if (rr < 0.050) { pendingBonus = 'REG'; isSelfDrawn = true; addUraLog('REG', "チェリー成立 (即放出)", true); }
                 }
                 
                 if (!pendingBonus) {
                     const br = Math.random();
-                    if (br < (1/920)) { pendingBonus = 'BIG'; isSelfDrawn = true; } 
-                    else if (br < (2/920)) { pendingBonus = 'REG'; isSelfDrawn = true; } 
+                    if (br < (1/920)) { pendingBonus = 'BIG'; isSelfDrawn = true; addUraLog('BIG', "1/920の薄い確率 (即放出)", true); } 
+                    else if (br < (2/920)) { pendingBonus = 'REG'; isSelfDrawn = true; addUraLog('REG', "1/920の薄い確率 (即放出)", true); } 
                 }
 
                 if (isSelfDrawn && mode === 'pullback' && stockQueue.length === 0 && hasTriggered10Lamps) {
                     trigger75Loop("自力引き戻し75%ループ");
                 }
+            }
 
-                if (mode === 'pullback' && !pendingBonus && stockQueue.length > 0) {
-                    if (Math.random() < (1/16) || games === 32) {
-                        pendingBonus = stockQueue.shift();
-                    }
+            // ★正しい引き戻し処理★
+            // 通常時は放出せず、引き戻しゾーン（pullback）でのみ、溜め込んだストックを1/16で放出する！
+            if (mode === 'pullback' && !pendingBonus && stockQueue.length > 0) {
+                if (Math.random() < (1/16) || games === 32) {
+                    pendingBonus = stockQueue.shift();
                 }
             }
 
+            // ボーナス終了
             if (mode === 'bonus') {
                 atGamesLeft--;
                 if (atGamesLeft <= 0) {
