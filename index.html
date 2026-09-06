@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oki-Style Slot Simulator V6</title>
+    <title>Oki-Style Slot Simulator V7</title>
     <style>
         body {
             background-color: #111;
@@ -26,23 +26,23 @@
             box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
         }
 
-        /* 上部ストック示唆ランプ */
+        /* 上部ストック示唆ランプ (発光を抑えて見やすく調整) */
         #top-lamp {
             width: 80%;
             height: 8px;
-            background-color: #333;
+            background-color: #222;
             margin: 0 auto 15px auto;
             border-radius: 4px;
             transition: all 0.1s;
             border: 1px solid #111;
         }
-        .flash-white { background-color: #fff; box-shadow: 0 0 15px #fff; }
-        .flash-blue { background-color: #0088ff; box-shadow: 0 0 20px #0088ff; }
-        .flash-green { background-color: #00ff00; box-shadow: 0 0 20px #00ff00; }
-        .flash-red { background-color: #ff0000; box-shadow: 0 0 25px #ff0000; }
+        .flash-white { background-color: #fff; box-shadow: 0 0 3px #fff; }
+        .flash-blue { background-color: #00aaff; box-shadow: 0 0 3px #00aaff; }
+        .flash-green { background-color: #00ff00; box-shadow: 0 0 8px #00ff00; }
+        .flash-red { background-color: #ff0000; box-shadow: 0 0 12px #ff0000; }
         .flash-rainbow { 
             background: linear-gradient(90deg, red, orange, yellow, green, blue, purple); 
-            box-shadow: 0 0 25px #fff; 
+            box-shadow: 0 0 15px #fff; 
         }
 
         /* ビスカスランプ */
@@ -85,9 +85,16 @@
             border: 1px solid #000;
             box-shadow: inset 0 0 3px #000;
         }
-        .mini-lamp.lit {
-            background-color: #00ffcc;
-            box-shadow: 0 0 8px #00ffcc, inset 0 0 5px #ffffff;
+        /* BIGで点灯する赤ランプ */
+        .mini-lamp.lit-red {
+            background-color: #ff3333;
+            box-shadow: 0 0 8px #ff3333, inset 0 0 3px #fff;
+            border-color: #ffaaaa;
+        }
+        /* REGで点灯する白ランプ */
+        .mini-lamp.lit-white {
+            background-color: #ffffff;
+            box-shadow: 0 0 6px #ffffff, inset 0 0 2px #ccc;
             border-color: #ffffff;
         }
 
@@ -148,7 +155,7 @@
         #spin-btn:disabled { background-color: #333; color: #666; }
         .skip-btn { background-color: #9900cc; color: #fff; }
 
-        /* 新設クレジット（差枚）ボックス */
+        /* クレジット（差枚）ボックス */
         .credit-box {
             background-color: #000;
             border: 2px solid #444;
@@ -177,7 +184,7 @@
         
         #console {
             background-color: #000;
-            height: 120px;
+            height: 140px;
             overflow-y: auto;
             text-align: left;
             padding: 10px;
@@ -302,14 +309,12 @@
         let currentCeiling = 600; 
         
         let bonusGainedTokens = 0;
-        let miniLampCount = 0;
-        let hasTriggered5Lamps = false;
+        let miniLampColors = []; // 'red' or 'white' を格納
         let hasTriggered10Lamps = false;
 
         let isSkipping = false;
         let isRevealing = false; 
 
-        // 差枚数パラパラアニメーション用
         let displayedNetTokens = 0;
         let tokenAnimInterval = null;
 
@@ -321,15 +326,44 @@
         const reels = [document.getElementById('reel-0'), document.getElementById('reel-1'), document.getElementById('reel-2')];
         const topLamp = document.getElementById('top-lamp');
 
-        function setHiddenMode() {
+        // 色分けされたボーナス名タグを取得するヘルパー関数
+        function getBonusTag(type) {
+            return type === 'BIG' ? '<span style="color:#ff5555; font-weight:bold;">BIG</span>' : '<span style="color:#55aaff; font-weight:bold;">REG</span>';
+        }
+
+        /* ========================================================
+           モード移行ロジック
+        ======================================================== */
+        function setHiddenMode(isReset = false) {
             const r = Math.random();
-            if (r < 1/3) { hiddenMode = 'A'; currentCeiling = 600; }
-            else if (r < 2/3) { hiddenMode = 'B'; currentCeiling = 400; }
-            else { hiddenMode = 'Heaven'; currentCeiling = 100; }
+            let nextMode = 'A';
+
+            if (isReset) {
+                if (r < 0.40) nextMode = 'A';
+                else if (r < 0.70) nextMode = 'B';
+                else nextMode = 'Heaven';
+            } else {
+                if (hiddenMode === 'A') {
+                    if (r < 0.50) nextMode = 'A';
+                    else if (r < 0.97) nextMode = 'B';
+                    else nextMode = 'Heaven';
+                } else if (hiddenMode === 'B') {
+                    if (r < 0.05) nextMode = 'A';
+                    else if (r < 0.45) nextMode = 'B';
+                    else nextMode = 'Heaven';
+                } else if (hiddenMode === 'Heaven') {
+                    if (r < 0.70) nextMode = 'A';
+                    else if (r < 0.90) nextMode = 'B';
+                    else nextMode = 'Heaven';
+                }
+            }
+            
+            hiddenMode = nextMode;
+            currentCeiling = (hiddenMode === 'B') ? 400 : (hiddenMode === 'Heaven' ? 100 : 600);
         }
 
         function initMachine() {
-            setHiddenMode();
+            setHiddenMode(true); // リセット時の抽選
             log("設定変更(リセット)完了。");
             checkStock(0.20, 0.20);
         }
@@ -368,25 +402,19 @@
             setTimeout(() => { topLamp.className = ''; }, 500);
         }
 
-        /* ========================================================
-           差枚数のパラパラアニメーション処理
-        ======================================================== */
         function updateTokenDisplay(targetTokens) {
             if (displayedNetTokens === targetTokens) return;
             if (tokenAnimInterval) clearInterval(tokenAnimInterval);
             
             let diff = Math.abs(targetTokens - displayedNetTokens);
             let step = targetTokens > displayedNetTokens ? 1 : -1;
-            let intervalMs = 25; // 基本は25msで1枚ずつパラパラと
+            let intervalMs = 25; 
 
-            // スキップ直後などで大幅にズレた場合は少しスピードを上げる
             if (diff > 20) intervalMs = 10;
             if (diff > 100) step *= Math.floor(diff / 50);
 
             tokenAnimInterval = setInterval(() => {
                 displayedNetTokens += step;
-                
-                // 行き過ぎ防止
                 if ((step > 0 && displayedNetTokens >= targetTokens) || 
                     (step < 0 && displayedNetTokens <= targetTokens)) {
                     displayedNetTokens = targetTokens;
@@ -460,11 +488,10 @@
                     log(`32Gスルー 合計<span class="bonus-result">${chainTokens}枚獲得</span> 通常モードへ`);
                     mode = 'normal';
                     chainTokens = 0;
-                    setHiddenMode();
+                    setHiddenMode(false); // 通常転落時のモード移行抽選
                     checkStock(0.30, 0.20);
                     
-                    miniLampCount = 0;
-                    hasTriggered5Lamps = false;
+                    miniLampColors = [];
                     hasTriggered10Lamps = false;
                     updateUI(); 
                 }
@@ -533,7 +560,7 @@
             if (mode === 'bonus') {
                 atGamesLeft--;
                 if (atGamesLeft <= 0) {
-                    log(`<span class="bonus-result">${currentBonus}終了 ${bonusGainedTokens}枚獲得 引き戻しモードへ</span>`);
+                    log(`<span class="bonus-result">${getBonusTag(currentBonus)}終了 ${bonusGainedTokens}枚獲得 引き戻しモードへ</span>`);
                     mode = 'pullback';
                     currentBonus = null;
                     setLamp(false);
@@ -551,7 +578,7 @@
         let currentRole = '';
 
         function executeBonusReveal(isMuted) {
-            let hitGame = games; // 揃える前の当選ゲーム数を保存
+            let hitGame = games; 
             
             games++;
             netTokens -= 3;
@@ -568,7 +595,6 @@
                 document.getElementById('spin-btn').disabled = true;
                 playSound('spin');
                 
-                // メダル消費によるアニメーションを即時反映
                 updateUI();
 
                 let r0 = setInterval(()=>reels[0].innerText = '🔄', 50);
@@ -597,17 +623,18 @@
             mode = 'bonus';
             currentBonus = type;
             atGamesLeft = (type === 'BIG') ? 60 : 20;
-            games = 0; // ボーナス開始でG数リセット
+            games = 0; 
             bonusGainedTokens = 0; 
             
-            miniLampCount += (type === 'BIG') ? 2 : 1;
-            if (miniLampCount > 10) miniLampCount = 10;
-
-            if (miniLampCount >= 5 && !hasTriggered5Lamps) {
-                hasTriggered5Lamps = true;
-                checkStock(0.05, 0.15);
+            // ミニランプ点灯ロジック (BIG=赤2, REG=白1, 10個目はBIGのみ)
+            if (type === 'BIG') {
+                if (miniLampColors.length < 10) miniLampColors.push('red');
+                if (miniLampColors.length < 10) miniLampColors.push('red');
+            } else if (type === 'REG') {
+                if (miniLampColors.length < 9) miniLampColors.push('white');
             }
-            if (miniLampCount === 10 && !hasTriggered10Lamps) {
+
+            if (miniLampColors.length === 10 && !hasTriggered10Lamps) {
                 hasTriggered10Lamps = true;
                 trigger75Loop();
             }
@@ -616,12 +643,10 @@
 
             if (!isMuted) {
                 playSound('kyuin');
-                // 履歴に当選ゲーム数を表示
-                log(`<span class="danger">キュイン！ ${type} BONUS 確定！ (${hitGame}G)</span>`);
+                log(`<span class="danger">キュイン！ ${getBonusTag(type)} BONUS 確定！ (${hitGame}G)</span>`);
                 updateUI();
             } else {
-                // スキップ中の裏側でもログを残す
-                log(`<span class="danger">キュイン！ ${type} BONUS 確定！ (${hitGame}G)</span>`);
+                log(`<span class="danger">キュイン！ ${getBonusTag(type)} BONUS 確定！ (${hitGame}G)</span>`);
             }
         }
 
@@ -631,18 +656,29 @@
         function updateUI() {
             domGames.innerText = games;
             
-            // 差枚数パラパラアニメーションのトリガー
             updateTokenDisplay(netTokens);
             
             let statusText = '通常';
-            if (mode === 'bonus') statusText = `${currentBonus} (${atGamesLeft}G)`;
-            else if (mode === 'pullback') statusText = `引き戻し`;
-            domStatus.innerText = statusText;
+            if (mode === 'bonus') {
+                // UI上の状態表示も色分け
+                let dispBonus = currentBonus === 'BIG' ? '<span style="color:#ff3333;">BIG</span>' : '<span style="color:#3399ff;">REG</span>';
+                statusText = `${dispBonus} (${atGamesLeft}G)`;
+            } else if (mode === 'pullback') {
+                statusText = `引き戻し`;
+            }
+            domStatus.innerHTML = statusText;
 
+            // ミニランプUI更新
             for (let i = 1; i <= 10; i++) {
                 const ml = document.getElementById(`ml-${i}`);
-                if (i <= miniLampCount) ml.classList.add('lit');
-                else ml.classList.remove('lit');
+                ml.className = 'mini-lamp'; // クラスリセット
+                if (i <= miniLampColors.length) {
+                    if (miniLampColors[i-1] === 'red') {
+                        ml.classList.add('lit-red');
+                    } else {
+                        ml.classList.add('lit-white');
+                    }
+                }
             }
             setLamp(pendingBonus !== null);
         }
@@ -661,7 +697,7 @@
 
             while (loopCount < 2500) {
                 loopCount++;
-                playOneGame(true); // 裏で回す
+                playOneGame(true); 
 
                 if (startMode === 'normal') {
                     if (pendingBonus !== null || mode === 'bonus') break;
