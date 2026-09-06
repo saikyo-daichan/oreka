@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Oki-Style Slot Simulator V5</title>
+    <title>Oki-Style Slot Simulator V6</title>
     <style>
         body {
             background-color: #111;
@@ -65,6 +65,7 @@
             box-shadow: 0 0 25px #ff0000, 0 0 50px #ffaaaa;
             border-color: #ffaaaa;
         }
+        
         /* ミニランプ */
         #mini-lamps {
             display: flex;
@@ -97,8 +98,8 @@
             border-radius: 8px;
             margin-bottom: 10px;
             display: flex;
-            justify-content: space-between;
-            font-size: 1rem;
+            justify-content: space-around;
+            font-size: 1.1rem;
             border: 2px solid #333;
         }
         .highlight { color: #00ff00; font-weight: bold; }
@@ -135,19 +136,44 @@
         }
         button {
             flex: 1;
-            padding: 12px 5px;
-            font-size: 0.9rem;
+            padding: 15px 5px;
+            font-size: 1.1rem;
             font-weight: bold;
             border-radius: 5px;
             cursor: pointer;
             border: none;
             touch-action: manipulation;
         }
-        #spin-btn { background-color: #0066cc; color: #fff; font-size: 1.1rem; }
+        #spin-btn { background-color: #0066cc; color: #fff; }
         #spin-btn:disabled { background-color: #333; color: #666; }
-        .action-btn { background-color: #444; color: #fff; }
-        .action-btn.active { background-color: #ff9900; color: #000; }
         .skip-btn { background-color: #9900cc; color: #fff; }
+
+        /* 新設クレジット（差枚）ボックス */
+        .credit-box {
+            background-color: #000;
+            border: 2px solid #444;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 1.2rem;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            box-shadow: inset 0 0 10px #000;
+        }
+        .credit-box span {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #00ff00;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+        }
+        .credit-box span.negative {
+            color: #ff3333;
+            text-shadow: 0 0 5px rgba(255, 51, 51, 0.5);
+        }
         
         #console {
             background-color: #000;
@@ -183,9 +209,6 @@
 
         <div class="info-panel">
             <div>G数: <span id="game-count" class="highlight">0</span></div>
-            <div>差枚: <span id="net-tokens">0</span></div>
-        </div>
-        <div class="info-panel" style="justify-content: center;">
             <div>状態: <span id="status-display">通常</span></div>
         </div>
 
@@ -198,11 +221,11 @@
         <div class="controls-row">
             <button id="spin-btn" onclick="manualSpin()">手動 1G回す</button>
         </div>
-        <div class="controls-row">
-            <button class="action-btn" id="auto-1" onclick="toggleAuto(1)">オート低</button>
-            <button class="action-btn" id="auto-2" onclick="toggleAuto(2)">オート中</button>
-            <button class="action-btn" id="auto-3" onclick="toggleAuto(3)">オート高</button>
+        
+        <div class="credit-box">
+            <span>差枚数</span> <span id="net-tokens">0</span>
         </div>
+
         <div class="controls-row">
             <button class="skip-btn" onclick="executeSkip()">イベントスキップ</button>
         </div>
@@ -212,7 +235,7 @@
 
     <script>
         /* ========================================================
-           サウンド設定 (iOS/Safari対策強化)
+           サウンド設定
         ======================================================== */
         let audioCtx = null;
         function initAudio() {
@@ -268,14 +291,14 @@
         ======================================================== */
         let games = 0;
         let netTokens = 0;
-        let chainTokens = 0; // 一連の獲得枚数
+        let chainTokens = 0;
         let mode = 'normal';
         let stockQueue = [];
         let pendingBonus = null;
         let currentBonus = null;
         let atGamesLeft = 0;
         
-        let hiddenMode = 'A'; // 内部モード (A, B, Heaven)
+        let hiddenMode = 'A';
         let currentCeiling = 600; 
         
         let bonusGainedTokens = 0;
@@ -283,10 +306,12 @@
         let hasTriggered5Lamps = false;
         let hasTriggered10Lamps = false;
 
-        let autoInterval = null;
-        let isAuto = 0;
         let isSkipping = false;
-        let isRevealing = false; // ボーナス揃え演出中フラグ
+        let isRevealing = false; 
+
+        // 差枚数パラパラアニメーション用
+        let displayedNetTokens = 0;
+        let tokenAnimInterval = null;
 
         const domGames = document.getElementById('game-count');
         const domNet = document.getElementById('net-tokens');
@@ -317,31 +342,64 @@
             lamps.forEach(l => state ? l.classList.add('flash') : l.classList.remove('flash'));
         }
 
-        // 上部ストック示唆ランプ (提供された確率に完全準拠)
         function flashTopLamp() {
             let colorClass = 'flash-white';
             let r = Math.random();
             let s = stockQueue.length;
 
             if (s >= 3) {
-                if (r < 0.005) colorClass = 'flash-rainbow'; // 0.5%
-                else if (r < 0.030) colorClass = 'flash-red'; // 2.5%
-                else if (r < 0.100) colorClass = 'flash-green'; // 7%
-                else if (r < 0.350) colorClass = 'flash-blue'; // 25%
-                else colorClass = 'flash-white'; // 65%
-            } else if (s >= 1) { // 1 or 2
-                if (r < 0.015) colorClass = 'flash-red'; // 1.5%
-                else if (r < 0.080) colorClass = 'flash-green'; // 6.5%
-                else if (r < 0.300) colorClass = 'flash-blue'; // 22%
-                else colorClass = 'flash-white'; // 70%
-            } else { // 0
-                if (r < 0.050) colorClass = 'flash-green'; // 5%
-                else if (r < 0.250) colorClass = 'flash-blue'; // 20%
-                else colorClass = 'flash-white'; // 75%
+                if (r < 0.005) colorClass = 'flash-rainbow';
+                else if (r < 0.030) colorClass = 'flash-red';
+                else if (r < 0.100) colorClass = 'flash-green';
+                else if (r < 0.350) colorClass = 'flash-blue';
+                else colorClass = 'flash-white';
+            } else if (s >= 1) {
+                if (r < 0.015) colorClass = 'flash-red';
+                else if (r < 0.080) colorClass = 'flash-green';
+                else if (r < 0.300) colorClass = 'flash-blue';
+                else colorClass = 'flash-white';
+            } else {
+                if (r < 0.050) colorClass = 'flash-green';
+                else if (r < 0.250) colorClass = 'flash-blue';
+                else colorClass = 'flash-white';
             }
 
             topLamp.className = colorClass;
             setTimeout(() => { topLamp.className = ''; }, 500);
+        }
+
+        /* ========================================================
+           差枚数のパラパラアニメーション処理
+        ======================================================== */
+        function updateTokenDisplay(targetTokens) {
+            if (displayedNetTokens === targetTokens) return;
+            if (tokenAnimInterval) clearInterval(tokenAnimInterval);
+            
+            let diff = Math.abs(targetTokens - displayedNetTokens);
+            let step = targetTokens > displayedNetTokens ? 1 : -1;
+            let intervalMs = 25; // 基本は25msで1枚ずつパラパラと
+
+            // スキップ直後などで大幅にズレた場合は少しスピードを上げる
+            if (diff > 20) intervalMs = 10;
+            if (diff > 100) step *= Math.floor(diff / 50);
+
+            tokenAnimInterval = setInterval(() => {
+                displayedNetTokens += step;
+                
+                // 行き過ぎ防止
+                if ((step > 0 && displayedNetTokens >= targetTokens) || 
+                    (step < 0 && displayedNetTokens <= targetTokens)) {
+                    displayedNetTokens = targetTokens;
+                    clearInterval(tokenAnimInterval);
+                }
+                
+                domNet.innerText = displayedNetTokens;
+                if (displayedNetTokens >= 0) {
+                    domNet.classList.remove('negative');
+                } else {
+                    domNet.classList.add('negative');
+                }
+            }, intervalMs);
         }
 
         /* ========================================================
@@ -390,7 +448,6 @@
         function playOneGame(isMuted = false) {
             initAudio();
 
-            // ボーナス告知状態の場合、図柄を揃える演出へ
             if (pendingBonus && mode !== 'bonus') {
                 executeBonusReveal(isMuted);
                 return;
@@ -399,7 +456,6 @@
             if (mode !== 'bonus') {
                 games++;
                 
-                // 【修正】33G目開始時(32Gで告知がなかった場合)に通常転落処理
                 if (mode === 'pullback' && games === 33) {
                     log(`32Gスルー 合計<span class="bonus-result">${chainTokens}枚獲得</span> 通常モードへ`);
                     mode = 'normal';
@@ -410,7 +466,7 @@
                     miniLampCount = 0;
                     hasTriggered5Lamps = false;
                     hasTriggered10Lamps = false;
-                    updateUI(); // 消滅を即反映
+                    updateUI(); 
                 }
 
                 if (hiddenMode === 'Heaven' && games === 50) checkStock(0.5, 0.5);
@@ -428,10 +484,7 @@
             const role = determineRole();
             netTokens += role.net;
             
-            if (mode === 'bonus' || mode === 'pullback') {
-                chainTokens += role.net;
-            }
-
+            if (mode === 'bonus' || mode === 'pullback') chainTokens += role.net;
             if (mode === 'bonus') bonusGainedTokens += role.net;
 
             if (role.pay > 0 && currentRole !== 'replay' && !isMuted) playSound('pay');
@@ -447,7 +500,6 @@
                 }
             }
 
-            // ボーナス抽選 (通常時・引き戻し中)
             if (mode !== 'bonus' && !pendingBonus && games < currentCeiling) {
                 let isSelfDrawn = false; 
 
@@ -471,7 +523,6 @@
                     trigger75Loop();
                 }
 
-                // 【修正】引き戻し中のストック放出 (毎G 1/16抽選、32G目は強制放出)
                 if (mode === 'pullback' && !pendingBonus && stockQueue.length > 0) {
                     if (Math.random() < (1/16) || games === 32) {
                         pendingBonus = stockQueue.shift();
@@ -489,7 +540,6 @@
                     if (!isMuted) flashTopLamp();
                 }
             } 
-            // 32G抜けの処理はブロック先頭に移動済み
 
             if (!isMuted) {
                 reels.forEach(r => r.innerText = role.symbol);
@@ -501,6 +551,8 @@
         let currentRole = '';
 
         function executeBonusReveal(isMuted) {
+            let hitGame = games; // 揃える前の当選ゲーム数を保存
+            
             games++;
             netTokens -= 3;
             chainTokens -= 3;
@@ -515,6 +567,9 @@
                 isRevealing = true;
                 document.getElementById('spin-btn').disabled = true;
                 playSound('spin');
+                
+                // メダル消費によるアニメーションを即時反映
+                updateUI();
 
                 let r0 = setInterval(()=>reels[0].innerText = '🔄', 50);
                 let r1 = setInterval(()=>reels[1].innerText = '🔄', 50);
@@ -529,20 +584,20 @@
                     
                     setTimeout(()=> {
                         isRevealing = false;
-                        triggerBonusFinalize(pB, isMuted);
+                        triggerBonusFinalize(pB, isMuted, hitGame);
                         document.getElementById('spin-btn').disabled = false;
                     }, 600);
                 }, 1200);
             } else {
-                triggerBonusFinalize(pB, isMuted);
+                triggerBonusFinalize(pB, isMuted, hitGame);
             }
         }
 
-        function triggerBonusFinalize(type, isMuted) {
+        function triggerBonusFinalize(type, isMuted, hitGame) {
             mode = 'bonus';
             currentBonus = type;
             atGamesLeft = (type === 'BIG') ? 60 : 20;
-            games = 0;
+            games = 0; // ボーナス開始でG数リセット
             bonusGainedTokens = 0; 
             
             miniLampCount += (type === 'BIG') ? 2 : 1;
@@ -561,8 +616,12 @@
 
             if (!isMuted) {
                 playSound('kyuin');
-                log(`<span class="danger">キュイン！ ${type} BONUS 確定！</span>`);
+                // 履歴に当選ゲーム数を表示
+                log(`<span class="danger">キュイン！ ${type} BONUS 確定！ (${hitGame}G)</span>`);
                 updateUI();
+            } else {
+                // スキップ中の裏側でもログを残す
+                log(`<span class="danger">キュイン！ ${type} BONUS 確定！ (${hitGame}G)</span>`);
             }
         }
 
@@ -571,8 +630,9 @@
         ======================================================== */
         function updateUI() {
             domGames.innerText = games;
-            domNet.innerText = netTokens;
-            domNet.style.color = netTokens >= 0 ? '#00ff00' : '#ff3333';
+            
+            // 差枚数パラパラアニメーションのトリガー
+            updateTokenDisplay(netTokens);
             
             let statusText = '通常';
             if (mode === 'bonus') statusText = `${currentBonus} (${atGamesLeft}G)`;
@@ -588,40 +648,12 @@
         }
 
         function manualSpin() {
-            if (isAuto !== 0 || isSkipping || isRevealing) return;
-            playOneGame(false);
-        }
-
-        function toggleAuto(speedMode) {
             if (isSkipping || isRevealing) return;
-            if (isAuto === speedMode) { stopAuto(); return; }
-            
-            stopAuto();
-            isAuto = speedMode;
-            
-            document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`auto-${speedMode}`).classList.add('active');
-            document.getElementById('spin-btn').disabled = true;
-
-            let intervalMs = 2000;
-            if (speedMode === 2) intervalMs = 1000;
-            if (speedMode === 3) intervalMs = 400;
-
-            autoInterval = setInterval(() => {
-                if(!isRevealing) playOneGame(false);
-            }, intervalMs);
-        }
-
-        function stopAuto() {
-            if (autoInterval) clearInterval(autoInterval);
-            isAuto = 0;
-            document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('spin-btn').disabled = false;
+            playOneGame(false);
         }
 
         function executeSkip() {
             if (isSkipping || isRevealing) return;
-            stopAuto();
             isSkipping = true;
             
             let loopCount = 0;
@@ -629,7 +661,7 @@
 
             while (loopCount < 2500) {
                 loopCount++;
-                playOneGame(true);
+                playOneGame(true); // 裏で回す
 
                 if (startMode === 'normal') {
                     if (pendingBonus !== null || mode === 'bonus') break;
